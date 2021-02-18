@@ -1,0 +1,60 @@
+trajectory_point {
+  path_point {
+    x: 587473.7083961661
+    y: 4140709.64786052
+  }
+}
+trajectory_point {
+  path_point {
+    x: 587473.99149441824
+    y: 4140709.260232632
+  }
+}
+trajectory_point {
+  path_point {
+    x: 587474.27459267038
+    y: 4140708.872604744
+  }
+}
+trajectory_point {
+  path_point {
+    x: 587474.55769092252
+    y: 4140708.484976856
+  }
+}
+trajectory_point {
+  path_point {
+    x: 587474.84078917466
+    y: 4140708.097348968
+  }
+}
+trajectory_point {
+  path_point {
+    x: 587475.1238874268
+    y: 4140707.70972108
+  }
+}
+trajectory_point {
+  path_point {
+    x: 587475.406985679
+    y: 4140707.322093192
+  }
+}
+trajectory_point {
+  path_point {
+    x: 587475.69008393108
+    y: 4140706.934465304
+  }
+}
+trajectory_point {
+  path_point {
+    x: 587475.97318218322
+    y: 4140706.546837416
+  }
+}
+trajectory_point {
+  path_point {
+    x: 587475.85250139318
+    y: 4140705.8643155047
+  }
+}

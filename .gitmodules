@@ -1,0 +1,3 @@
+[submodule "TrafficPredict/TrafficPredict"]
+	path = TrafficPredict/TrafficPredict
+	url = https://github.com/huang-xx/TrafficPredict.git
