@@ -1,6 +1,8 @@
 [submodule "TrafficPredict/TrafficPredict"]
 	path = prediction/TrafficPredict/TrafficPredict
 	url = https://github.com/huang-xx/TrafficPredict.git
+	ignore = all
 [submodule "SpectralCows/Spectral-Trajectory-and-Behavior-Prediction"]
 	path = prediction/SpectralCows/Spectral-Trajectory-and-Behavior-Prediction
 	url = https://github.com/rohanchandra30/Spectral-Trajectory-and-Behavior-Prediction.git
+	ignore = all

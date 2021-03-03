@@ -21,12 +21,12 @@ from helper import (
 from model import SRNN
 from st_graph import ST_GRAPH
 from .dataloader import TrafficPredictDataLoader
+from prediction.base.interface import Interface
 
-class TrafficPredictInterface():
-    def __init__(self, configs={}):
-        # TODO: make the trace legnth configurable
-        self.obs_length = 4
-        self.pred_length = 6
+class TrafficPredictInterface(Interface):
+    def __init__(self, dataset_name, obs_length, pred_length):
+        super().__init__(dataset_name, obs_length, pred_length)
+
         self.model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "model")
         self.config_path = os.path.join(self.model_dir, "config.pkl")
         self.checkpoint_path = os.path.join(self.model_dir, "srnn_model.tar")
@@ -43,8 +43,9 @@ class TrafficPredictInterface():
 
         self.checkpoint = torch.load(self.checkpoint_path)
         self.net.load_state_dict(self.checkpoint["state_dict"])
-        self.dataloader = dataloader = TrafficPredictDataLoader(
-            1, self.obs_length, self.pred_length, infer=True
+
+        self.dataloader = TrafficPredictDataLoader(
+            self.dataset, self.obs_length, self.pred_length
         )
 
     def data(self, dataset="apolloscape"):

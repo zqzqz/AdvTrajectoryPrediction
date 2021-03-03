@@ -11,3 +11,10 @@ def fde(trace1, trace2):
     length = min(trace1.shape[0], trace2.shape[0])
     error = np.sum((trace1[length-1,:] - trace2[length-1,:]) ** 2) ** 0.5
     return error
+
+def evaluate_error(AlgorithmInterface):
+    api = AlgorithmInterface
+    for input_data in api.data():
+        output_data = api.run(input_data)
+        for _, obj in output_data["objects"].items():
+            pass

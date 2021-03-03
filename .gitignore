@@ -1,3 +1,6 @@
+/prediction/TrafficPredict/TrafficPredict
+/prediction/SpectralCows/Spectral-Trajectory-and-Behavior-Prediction
+
 # general
 *.tmp
 *.png

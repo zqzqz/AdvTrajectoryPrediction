@@ -7,7 +7,7 @@
     "predict_length": int,
     "objects": {
         int (object id): {
-            "type": str in ["vehicle", "pedestrian", "bicycle"],
+            "type": str in {1:"small vehicle", 2:"big vehicle", 3:"pedestrian", 4:"bicycle", 5:"other"},
             "observe_trace": numpy array (observe_length * 2),
             "future_trace": numpy array (predict_length * 2),
             "predict_trace": numpy array (predict_length * 2),
