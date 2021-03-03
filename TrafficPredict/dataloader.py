@@ -128,11 +128,9 @@ class TrafficPredictDataLoader:
 
     def postprocess(self, input_data, ret_nodes):
         for frame_id in range(self.obs_length, self.seq_length):
-            print(frame_id)
             frame_data = ret_nodes[frame_id]
             index = 0
             for obj_id, obj in input_data["objects"].items():
-                print(index)
                 obj["predict_trace"][frame_id-self.obs_length,0] = (frame_data[index,0] + 1) / 2 * (self.max_position_x - self.min_position_x) + self.min_position_x
                 obj["predict_trace"][frame_id-self.obs_length,1] = (frame_data[index,1] + 1) / 2 * (self.max_position_y - self.min_position_y) + self.min_position_y
                 index += 1

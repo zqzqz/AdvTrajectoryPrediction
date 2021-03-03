@@ -1,3 +1,6 @@
 [submodule "TrafficPredict/TrafficPredict"]
 	path = TrafficPredict/TrafficPredict
 	url = https://github.com/huang-xx/TrafficPredict.git
+[submodule "SpectralCows/Spectral-Trajectory-and-Behavior-Prediction"]
+	path = SpectralCows/Spectral-Trajectory-and-Behavior-Prediction
+	url = https://github.com/rohanchandra30/Spectral-Trajectory-and-Behavior-Prediction.git
