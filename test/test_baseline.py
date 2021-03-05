@@ -8,3 +8,9 @@ if __name__ == "__main__":
     api = BaselineInterface("apolloscape", 4, 6)
     ade, fde = evaluate_error(api)
     draw_error_distribution(ade, fde, "error.png")
+
+    for input_data in api.data():
+        output_data = api.run(input_data)
+        print(output_data)
+        draw_traces(output_data, "trace.png")
+        break

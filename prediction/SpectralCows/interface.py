@@ -8,27 +8,31 @@ import numpy as np
 import torch
 from torch import optim
 
+from .dataloader import SpectralCowsDataLoader
+from prediction.base.interface import Interface
+
 # import the following modules from the original repo
 from def_train_eval import load_batch
 from def_train_eval import compute_accuracy_stream1
 from models import *
 
-class SpectralCowsInterface():
-    def __init__(self):
-        # TODO: make the trace legnth configurable
-        self.obs_length = 5
-        self.pred_length = 20
-        self.batch_size = 128  # defined in `def_train_eval.py`
+class SpectralCowsInterface(Interface):
+    def __init__(self, dataset_name, obs_length, pred_length):
+        super().__init__(dataset_name, obs_length, pred_length)
 
         self.repo_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Spectral-Trajectory-and-Behavior-Prediction")
         self.trained_model_dir = os.path.join(self.repo_dir, "resources/trained_models/Ours/APOL")
-        self.data_dir = os.path.join(self.repo_dir, "resources/data/APOL")
+        self.data_dir = os.path.join(self.repo_dir, "resources/data/LYFT")
         with open(os.path.join(self.data_dir, "stream1_obs_data_test.pkl"), 'rb') as f1:
             self.tr_seq_1 = pickle.load(f1)
         with open(os.path.join(self.data_dir, "stream1_pred_data_test.pkl"), 'rb') as g1:
             self.pred_seq_1 = pickle.load(g1)
 
-    def data(self, dataset="apolloscape"):
+        self.dataloader = SpectralCowsDataLoader(
+            self.dataset, self.obs_length, self.pred_length
+        )
+
+    def data(self):
         # TODO: finish the preprocessing part of the dataloader
         return None
 
@@ -38,7 +42,7 @@ class SpectralCowsInterface():
 
         # the original arguments passed into `eval` function
         epochs = 10
-        dataset_name = "APOL"
+        dataset_name = "LYFT"
         dataset_sufix = "1stS1new"
         learning_rate=1e-3  # the default learning rate in `eval` function
 

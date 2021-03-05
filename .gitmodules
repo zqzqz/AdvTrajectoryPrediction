@@ -6,3 +6,6 @@
 	path = prediction/SpectralCows/Spectral-Trajectory-and-Behavior-Prediction
 	url = https://github.com/rohanchandra30/Spectral-Trajectory-and-Behavior-Prediction.git
 	ignore = all
+[submodule "prediction/GRIP/GRIP"]
+	path = prediction/GRIP/GRIP
+	url = https://github.com/xincoder/GRIP.git

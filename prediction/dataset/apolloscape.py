@@ -25,7 +25,8 @@ class ApolloscapeDataset:
             }
 
             # fill data
-            for frame_id in range(slice_id*self.seq_length, (slice_id+1)*self.seq_length):
+            start_frame_id = int(data[0,0])
+            for frame_id in range(start_frame_id+slice_id*self.seq_length, start_frame_id+(slice_id+1)*self.seq_length):
                 frame_data = data[data[:, 0] == frame_id, :]
                 for obj_index in range(frame_data.shape[0]):
                     obj_data = frame_data[obj_index, :]
@@ -36,7 +37,7 @@ class ApolloscapeDataset:
                             "observe_trace": np.zeros((self.obs_length,2)),
                             "future_trace": np.zeros((self.pred_length,2)),
                             "predict_trace": np.zeros((self.pred_length,2)),
-                            "frame": slice_id*self.seq_length,
+                            "frame": frame_id,
                             "length": 0
                         }
                     obj = input_data["objects"][obj_id]
@@ -60,6 +61,8 @@ class ApolloscapeDataset:
                     del obj["frame"]
             for invalid_obj_id in invalid_obj_ids:
                 del input_data["objects"][invalid_obj_id]
+            if len(input_data["objects"]) == 0:
+                continue
 
             input_data_list.append(input_data)
         return input_data_list
