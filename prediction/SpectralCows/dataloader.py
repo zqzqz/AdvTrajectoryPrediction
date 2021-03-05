@@ -80,6 +80,8 @@ class SpectralCowsDataLoader:
             return -1
 
     def preprocess(self, input_data):
+        # TODO: related parts are presented in `data_processing/data_stream.py`
+        # should convert the original data into two streams
         pass
 
     def postprocess(self, model_output):
