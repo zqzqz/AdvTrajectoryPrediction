@@ -28,3 +28,18 @@ def draw_traces(output_data, filename=None):
         fig.show()
     else:
         fig.savefig(filename)
+
+
+def draw_error_distribution(ade_list, fde_list, filename=None):
+    fig, (ax1, ax2) = plt.subplots(1,2)
+    ax1.hist(ade_list, bins=20, label="ade")
+    ax1.axvline(x=sum(ade_list)/len(ade_list))
+    ax1.legend()
+    ax2.hist(fde_list, bins=20, label="fde")
+    ax2.axvline(x=sum(fde_list)/len(fde_list))
+    ax2.legend()
+
+    if filename is None:
+        fig.show()
+    else:
+        fig.savefig(filename)    

@@ -48,7 +48,7 @@ class TrafficPredictInterface(Interface):
             self.dataset, self.obs_length, self.pred_length
         )
 
-    def data(self, dataset="apolloscape"):
+    def data(self):
         return self.dataloader.generate_data()
 
     def run(self, input_data):
