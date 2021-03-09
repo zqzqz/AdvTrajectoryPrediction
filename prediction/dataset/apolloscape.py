@@ -5,6 +5,7 @@ class ApolloscapeDataset:
     def __init__(self, obs_length, pred_length):
         self.data_dir =  os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../data/apolloscape/")
         self.test_data_dir = os.path.join(self.data_dir, "prediction_test")
+        self.val_data_dir = os.path.join(self.data_dir, "prediction_val")
         self.train_data_dir = os.path.join(self.data_dir, "prediction_train")
         self.obs_length = obs_length
         self.pred_length = pred_length
@@ -36,6 +37,8 @@ class ApolloscapeDataset:
                             "type": int(obj_data[2]),
                             "observe_trace": np.zeros((self.obs_length,2)),
                             "future_trace": np.zeros((self.pred_length,2)),
+                            "observe_full_trace": np.zeros((self.obs_length,7)),
+                            "future_full_trace": np.zeros((self.pred_length,7)),
                             "predict_trace": np.zeros((self.pred_length,2)),
                             "frame": frame_id,
                             "length": 0
@@ -43,11 +46,11 @@ class ApolloscapeDataset:
                     obj = input_data["objects"][obj_id]
                     if obj["length"] < self.seq_length and obj["frame"] == frame_id:
                         if obj["length"] < self.obs_length:
-                            obj["observe_trace"][obj["length"], 0] = obj_data[3]
-                            obj["observe_trace"][obj["length"], 1] = obj_data[4]
+                            obj["observe_trace"][obj["length"], :] = obj_data[3:5]
+                            obj["observe_full_trace"][obj["length"], :] = obj_data[3:]
                         else:
-                            obj["future_trace"][obj["length"]-self.obs_length, 0] = obj_data[3]
-                            obj["future_trace"][obj["length"]-self.obs_length, 1] = obj_data[4]
+                            obj["future_trace"][obj["length"]-self.obs_length, :] = obj_data[3:5]
+                            obj["future_full_trace"][obj["length"]-self.obs_length, :] = obj_data[3:]
                         obj["length"] += 1
                         obj["frame"] += 1
 

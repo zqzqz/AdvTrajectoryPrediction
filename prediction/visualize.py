@@ -14,7 +14,7 @@ def draw_traces(output_data, filename=None):
         ylim[1] = max(ylim[1], trace_all[:,1].max())
         # draw lines
         pred = np.concatenate((obj["observe_trace"], obj["predict_trace"]), axis=0)
-        # ax.plot(pred[:,0], pred[:,1], "ro:")
+        ax.plot(pred[:,0], pred[:,1], "ro:")
         gt = np.concatenate((obj["observe_trace"], obj["future_trace"]), axis=0)
         ax.plot(gt[:,0], gt[:,1], "bo-")
         # print object id
@@ -22,8 +22,8 @@ def draw_traces(output_data, filename=None):
         ax.text(last_point[0], last_point[1], str(obj_id))
     ax.set_xlabel("x")
     lim = max(xlim[1]-xlim[0], ylim[1]-ylim[0]) * 1.1
-    # ax.set_xlim([sum(xlim)/2 - lim/2, sum(xlim)/2 + lim/2])
-    # ax.set_ylim([sum(ylim)/2 - lim/2, sum(ylim)/2 + lim/2])
+    ax.set_xlim([sum(xlim)/2 - lim/2, sum(xlim)/2 + lim/2])
+    ax.set_ylim([sum(ylim)/2 - lim/2, sum(ylim)/2 + lim/2])
     if filename is None:
         fig.show()
     else:
