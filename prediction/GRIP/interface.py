@@ -6,11 +6,19 @@ import warnings
 import itertools
 import numpy as np
 import torch
+from torch.autograd import Variable
+from torch import autograd
+import logging
+import copy
 
 from .dataloader import GRIPDataLoader
 from prediction.base.interface import Interface
 from model import Model
 from main import my_load_model
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 class GRIPInterface(Interface):
     def __init__(self, dataset_name, obs_length, pred_length):
@@ -24,47 +32,48 @@ class GRIPInterface(Interface):
         graph_args={'max_hop':2, 'num_node':120}
         model = Model(in_channels=4, graph_args=graph_args, edge_importance_weighting=True)
         model.to(self.dev)
-        model.eval()
         self.model = my_load_model(model, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'GRIP/trained_models/model_epoch_0099.pt'))
 
     def data(self):
         return self.dataloader.generate_data()
 
-    def run(self, input_data):    
-        rescale_xy = torch.ones((1,2,1,1)).to(self.dev)
-        rescale_xy[:,0] = 1.
-        rescale_xy[:,1] = 1.
-        _ori_data, A, mean_xy = self.dataloader.preprocess(input_data)
-        ori_data = torch.from_numpy(_ori_data)
-        A = torch.from_numpy(A)
-
-        feature_id = [3, 4, 9, 10]
-        no_norm_loc_data = ori_data[:,feature_id].detach()
-        data = no_norm_loc_data.detach().clone()
-
-        new_mask = (data[:, :2, 1:]!=0) * (data[:, :2, :-1]!=0) 
-        data[:, :2, 1:] = (data[:, :2, 1:] - data[:, :2, :-1]).float() * new_mask.float()
-        data[:, :2, 0] = 0    
-        # # small vehicle: 1, big vehicles: 2, pedestrian 3, bicycle: 4, others: 5
-        object_type = ori_data[:,2:3]
-        data = data.float().to(self.dev)
-        no_norm_loc_data = no_norm_loc_data.float().to(self.dev)
-        object_type = object_type.to(self.dev) #type
-        data[:,:2] = data[:,:2] / rescale_xy
-        # result: data, no_norm_loc_data, object_type (function main.py:preprocess_data)
-        
-        _input_data = data[:,:,:self.obs_length,:] # (N, C, T, V)=(N, 4, 6, 120)
-        output_loc_GT = data[:,:2,self.obs_length:,:] # (N, C, T, V)=(N, 2, 6, 120)
-        output_mask = data[:,-1:,self.obs_length:,:] # (N, C, T, V)=(N, 1, 6, 120)
-
-        A = A.float().to(self.dev)
+    def run(self, input_data):
+        self.model.eval()
+        _input_data, A, _ori_data, mean_xy, rescale_xy, no_norm_loc_data = self.dataloader.preprocess(input_data, None)
         predicted = self.model(pra_x=_input_data, pra_A=A, pra_pred_length=self.pred_length, pra_teacher_forcing_ratio=0, pra_teacher_location=None) # (N, C, T, V)=(N, 2, 6, 120)
-        predicted = predicted *rescale_xy
-        predicted = predicted.detach().cpu().numpy()
+        output_data, _ = self.dataloader.postprocess(input_data, None, predicted, _ori_data, mean_xy, rescale_xy, no_norm_loc_data)
+        return output_data
 
-        ori_output_last_loc = no_norm_loc_data[:,:2,self.obs_length-1,:].detach().cpu().numpy()
-        predicted[:,:2,0,:] = ori_output_last_loc + predicted[:,:2,0,:]
-        for ind in range(1, predicted.shape[-2]):
-            predicted[:,:,ind,:] = predicted[:,:,ind-1,:] + predicted[:,:,ind,:]
+    def adv(self, data, perturbation, iter_num=100, learn_rate=0.01):
+        self.model.train()
+        perturbation["value"] = Variable(torch.randn(self.obs_length,2).cuda() * 0.5, requires_grad=True)
+        print(perturbation["value"])
+        opt_Adam = torch.optim.Adam([perturbation["value"]], lr=learn_rate)
 
-        return self.dataloader.postprocess(input_data, _ori_data, mean_xy, predicted)
+        best_iter = None
+        best_loss = 0x7fffffff
+        best_out = None
+        best_perturb = None
+
+        for i in range(iter_num):
+            input_data = copy.deepcopy(data)
+            perturbation["clamp_value"] = torch.clamp(perturbation["value"], min=-0.5, max=0.5)
+
+            _input_data, A, _ori_data, mean_xy, rescale_xy, no_norm_loc_data = self.dataloader.preprocess(input_data, perturbation)
+            predicted = self.model(pra_x=_input_data, pra_A=A, pra_pred_length=self.pred_length, pra_teacher_forcing_ratio=0, pra_teacher_location=None) # (N, C, T, V)=(N, 2, 6, 120)
+            output_data, loss = self.dataloader.postprocess(input_data, perturbation, predicted, _ori_data, mean_xy, rescale_xy, no_norm_loc_data)
+
+            if loss < best_loss:
+                best_loss = loss
+                best_perturb = perturbation["clamp_value"].detach().cpu().clone().numpy()
+                best_iter = i
+                best_out = copy.deepcopy(output_data)
+            
+            opt_Adam.zero_grad()
+            loss.backward()
+            opt_Adam.step()
+
+            logger.warn("Adv train step {} finished -- loss: {}; best loss: {};".format(i, loss, best_loss))
+
+        return best_out, best_perturb, best_iter, best_loss
+

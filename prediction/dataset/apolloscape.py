@@ -16,7 +16,7 @@ class ApolloscapeDataset:
         data = data[~(data[:, 2] == 5)]
 
         numFrames = len(np.unique(data[:, 0]))
-        numSlices = numFrames // self.seq_length
+        numSlices = numFrames - self.seq_length + 1
 
         for slice_id in range(numSlices):
             input_data = {
@@ -27,13 +27,13 @@ class ApolloscapeDataset:
 
             # fill data
             start_frame_id = int(data[0,0])
-            for frame_id in range(start_frame_id+slice_id*self.seq_length, start_frame_id+(slice_id+1)*self.seq_length):
+            for frame_id in range(start_frame_id+slice_id, start_frame_id+slice_id+self.seq_length):
                 frame_data = data[data[:, 0] == frame_id, :]
                 for obj_index in range(frame_data.shape[0]):
                     obj_data = frame_data[obj_index, :]
-                    obj_id = obj_data[1]
+                    obj_id = str(int(obj_data[1]))
                     if obj_id not in input_data["objects"]:
-                        input_data["objects"][int(obj_id)] = {
+                        input_data["objects"][obj_id] = {
                             "type": int(obj_data[2]),
                             "observe_trace": np.zeros((self.obs_length,2)),
                             "future_trace": np.zeros((self.pred_length,2)),

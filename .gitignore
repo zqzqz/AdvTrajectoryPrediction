@@ -1,7 +1,9 @@
 /prediction/TrafficPredict/TrafficPredict
 /prediction/SpectralCows/Spectral-Trajectory-and-Behavior-Prediction
+/test/output_data*
 
 # general
+tmp*
 *.tmp
 *.png
 .vscode

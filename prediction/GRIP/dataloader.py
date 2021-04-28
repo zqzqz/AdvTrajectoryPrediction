@@ -3,6 +3,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'GRI
 import logging
 import pickle
 import random
+import torch
 from scipy import spatial 
 from prediction.base.dataloader import DataLoader
 from layers.graph import Graph
@@ -16,11 +17,20 @@ class GRIPDataLoader(DataLoader):
         self.neighbor_distance = 10
         self.total_feature_dimension = 11
         self.graph = Graph(num_node = 120, max_hop = 2)
+        self.dev = 'cuda:0' 
 
     def generate_data(self):
         return self.dataset.format_data_generator(self.dataset.val_data_dir, None)
 
-    def preprocess(self, input_data):
+    def preprocess(self, input_data, perturbation, *args):
+        rescale_xy = torch.ones((1,2,1,1)).to(self.dev)
+        rescale_xy[:,0] = 1.
+        rescale_xy[:,1] = 1.
+
+        # get object index of perturbation target if any
+        if perturbation is not None:
+            perturbation["obj_index"] = list(input_data["objects"].keys()).index(str(perturbation["obj_id"]))
+
         # TODO: GRIP maintains invisible objects
         visible_object_id_list = list(input_data["objects"].keys())
         num_visible_object = len(visible_object_id_list)
@@ -80,9 +90,61 @@ class GRIPDataLoader(DataLoader):
         now_adjacency = self.graph.get_adjacency(all_adjacency_list)
         now_A = self.graph.normalize_adjacency(now_adjacency)
 
-        return all_feature_list, np.array([now_A]), all_mean_list
+        _ori_data, A, mean_xy = all_feature_list, np.array([now_A]), all_mean_list
+        ori_data = torch.from_numpy(_ori_data).cuda()
+        A = torch.from_numpy(A).cuda()
 
-    def postprocess(self, input_data, ori_data, mean_xy, predicted):
+        # inject perturbation if any
+        if perturbation is not None:
+            ori_data[0,3:5,:self.obs_length,perturbation["obj_index"]] += torch.transpose(perturbation["clamp_value"], 0, 1)
+
+        feature_id = [3, 4, 9, 10]
+        no_norm_loc_data = ori_data[:,feature_id]
+        data = no_norm_loc_data.clone()
+
+        new_mask = (data[:, :2, 1:]!=0) * (data[:, :2, :-1]!=0) 
+        data[:, :2, 1:] = (data[:, :2, 1:] - data[:, :2, :-1]).float() * new_mask.float()
+        data[:, :2, 0] = 0    
+        # # small vehicle: 1, big vehicles: 2, pedestrian 3, bicycle: 4, others: 5
+        object_type = ori_data[:,2:3]
+        data = data.float().to(self.dev)
+        no_norm_loc_data = no_norm_loc_data.float().to(self.dev)
+        object_type = object_type.to(self.dev) #type
+        data[:,:2] = data[:,:2] / rescale_xy
+        # result: data, no_norm_loc_data, object_type (function main.py:preprocess_data)
+        
+        _input_data = data[:,:,:self.obs_length,:] # (N, C, T, V)=(N, 4, 6, 120)
+        output_loc_GT = data[:,:2,self.obs_length:,:] # (N, C, T, V)=(N, 2, 6, 120)
+        output_mask = data[:,-1:,self.obs_length:,:] # (N, C, T, V)=(N, 1, 6, 120)
+        A = A.float().to(self.dev)
+
+        return _input_data, A, _ori_data, mean_xy, rescale_xy, no_norm_loc_data
+
+    def postprocess(self, input_data, perturbation, *args):
+        predicted, ori_data, mean_xy, rescale_xy, no_norm_loc_data = args
+
+        predicted = predicted * rescale_xy
+        ori_output_last_loc = no_norm_loc_data[:,:2,self.obs_length-1,:]
+        predicted[:,:2,0,:] = ori_output_last_loc + predicted[:,:2,0,:]
+        for ind in range(1, predicted.shape[-2]):
+            predicted[:,:,ind,:] = predicted[:,:,ind-1,:] + predicted[:,:,ind,:]
+
+        for n in range(predicted.shape[0]):
+            mean_x, mean_y = mean_xy[n,0], mean_xy[n,1]
+            predicted[n,0,:,:] += mean_x
+            predicted[n,1,:,:] += mean_y
+
+        if perturbation is not None:
+            input_data["objects"][str(perturbation["obj_id"])]["observe_trace"] += perturbation["clamp_value"].detach().cpu().numpy()
+            predict_trace = torch.transpose(predicted[0,:,:,perturbation["obj_index"]], 0, 1)
+            future_trace = torch.from_numpy(input_data["objects"][str(perturbation["obj_id"])]["future_trace"]).cuda()
+            # print(future_trace - predict_trace)
+            loss = perturbation["loss"](predict_trace, future_trace, perturbation["clamp_value"])
+        else:
+            loss = None
+
+        predicted = predicted.detach().cpu().numpy()
+
         now_pred = predicted # (N, C, T, V)=(N, 2, 6, 120)
         now_mean_xy = mean_xy # (N, 2)
         now_ori_data = ori_data # (N, C, T, V)=(N, 11, 6, 120)
@@ -97,12 +159,10 @@ class GRIPDataLoader(DataLoader):
             # only use the last time of original data for ids (frame_id, object_id, object_type)
             # (6, 120, 11) -> (num_object, 3)
             n_dat = n_data[-1, :num_object, :3].astype(int)
-
             for time_ind, n_pre in enumerate(n_pred[:, :num_object]):
                 # (120, 2) -> (n, 2)
-                for info, pred in zip(n_dat, n_pre+np.repeat(n_mean_xy.reshape((1,2)), repeats=self.pred_length, axis=0)):
+                for info, pred in zip(n_dat, n_pre):
                     information = info.copy()
                     information[0] = information[0] + time_ind
-                    input_data["objects"][information[1]]["predict_trace"][time_ind,:] = pred
-                    print(information, pred)
-        return input_data
+                    input_data["objects"][str(information[1])]["predict_trace"][time_ind,:] = pred
+        return input_data, loss

@@ -9,4 +9,4 @@ class Interface():
         if dataset_name == "apolloscape":
             self.dataset = ApolloscapeDataset(self.obs_length, self.pred_length)
         else:
-            raise Exception("Invalid dataset name")
+            self.dataset = None

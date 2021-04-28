@@ -9,3 +9,4 @@
 [submodule "prediction/GRIP/GRIP"]
 	path = prediction/GRIP/GRIP
 	url = https://github.com/xincoder/GRIP.git
+	ignore = all
