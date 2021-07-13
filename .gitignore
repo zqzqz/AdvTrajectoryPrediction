@@ -1,8 +1,9 @@
-/prediction/TrafficPredict/TrafficPredict
-/prediction/SpectralCows/Spectral-Trajectory-and-Behavior-Prediction
-/test/output_data*
+/prediction/model/TrafficPredict/TrafficPredict
+/prediction/model/SpectralCows/Spectral-Trajectory-and-Behavior-Prediction
+/prediction/model/GRIP/GRIP
 
 # general
+*.old
 tmp*
 *.tmp
 *.png
@@ -13,6 +14,8 @@ tmp*
 # dataset
 /data/apolloscape/*
 !/data/apolloscape/README.md
+/data/NGSIM/*
+!/data/apolloscape/preprocessing.m
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

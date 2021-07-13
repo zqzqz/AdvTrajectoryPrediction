@@ -5,22 +5,18 @@ import pickle
 import random
 import torch
 from scipy import spatial 
-from prediction.base.dataloader import DataLoader
+from prediction.model.base.dataloader import DataLoader
 from layers.graph import Graph
 import numpy as np
 
 class GRIPDataLoader(DataLoader):
-    def __init__(self, dataset, obs_length=6, pred_length=6):
-        super().__init__(dataset, obs_length, pred_length)
-        self.format_data = self.generate_data
+    def __init__(self, obs_length=6, pred_length=6):
+        super().__init__(obs_length, pred_length)
         self.max_num_object = 120
         self.neighbor_distance = 10
         self.total_feature_dimension = 11
         self.graph = Graph(num_node = 120, max_hop = 2)
         self.dev = 'cuda:0' 
-
-    def generate_data(self):
-        return self.dataset.format_data_generator(self.dataset.val_data_dir, None)
 
     def preprocess(self, input_data, perturbation, *args):
         rescale_xy = torch.ones((1,2,1,1)).to(self.dev)
@@ -29,14 +25,16 @@ class GRIPDataLoader(DataLoader):
 
         # get object index of perturbation target if any
         if perturbation is not None:
-            perturbation["obj_index"] = list(input_data["objects"].keys()).index(str(perturbation["obj_id"]))
+            obj_index = {_obj_id:index for index, _obj_id in enumerate(list(input_data["objects"].keys()))}
 
         # TODO: GRIP maintains invisible objects
         visible_object_id_list = list(input_data["objects"].keys())
         num_visible_object = len(visible_object_id_list)
 
         # compute the mean values of x and y for zero-centralization. 
-        visible_object_value = np.array([input_data["objects"][obj_id]["observe_full_trace"][self.obs_length-1,:] for obj_id in input_data["objects"]])
+        visible_object_value = np.array([
+            np.concatenate((input_data["objects"][obj_id]["observe_trace"][self.obs_length-1,:],
+                            input_data["objects"][obj_id]["observe_feature"][self.obs_length-1,:]), axis=0) for obj_id in input_data["objects"]])
         xy = visible_object_value[:,:2].astype(float)
         mean_xy = np.zeros_like(visible_object_value[0], dtype=float)
         m_xy = np.mean(xy, axis=0)
@@ -61,9 +59,11 @@ class GRIPDataLoader(DataLoader):
             # now_frame_feature_dict = {obj_id : list(pra_now_dict[frame_ind][obj_id]-mean_xy)+[1] for obj_id in pra_now_dict[frame_ind] if obj_id in visible_object_id_list}
             for obj_id in input_data["objects"]:
                 if frame_ind < self.obs_length:
-                    feature_data = input_data["objects"][obj_id]["observe_full_trace"][frame_ind,:]
+                    feature_data = np.concatenate((input_data["objects"][obj_id]["observe_trace"][frame_ind,:],
+                                                   input_data["objects"][obj_id]["observe_feature"][frame_ind,:]), axis=0)
                 else:
-                    feature_data = input_data["objects"][obj_id]["future_full_trace"][frame_ind-self.obs_length,:]
+                    feature_data = np.concatenate((input_data["objects"][obj_id]["observe_trace"][frame_ind-self.obs_length,:],
+                                                   input_data["objects"][obj_id]["observe_feature"][frame_ind-self.obs_length,:]), axis=0)
                 if obj_id in visible_object_id_list:
                     now_frame_feature_dict[obj_id] = [frame_ind, obj_id, input_data["objects"][obj_id]["type"]]+list(feature_data-mean_xy)+[1]
                 else:
@@ -96,7 +96,8 @@ class GRIPDataLoader(DataLoader):
 
         # inject perturbation if any
         if perturbation is not None:
-            ori_data[0,3:5,:self.obs_length,perturbation["obj_index"]] += torch.transpose(perturbation["clamp_value"], 0, 1)
+            for _obj_id in perturbation["ready_value"]:
+                ori_data[0,3:5,:self.obs_length,obj_index[_obj_id]] += torch.transpose(perturbation["ready_value"][_obj_id], 0, 1)
 
         feature_id = [3, 4, 9, 10]
         no_norm_loc_data = ori_data[:,feature_id]
@@ -118,7 +119,7 @@ class GRIPDataLoader(DataLoader):
         output_mask = data[:,-1:,self.obs_length:,:] # (N, C, T, V)=(N, 1, 6, 120)
         A = A.float().to(self.dev)
 
-        return _input_data, A, _ori_data, mean_xy, rescale_xy, no_norm_loc_data
+        return _input_data, A, _ori_data, mean_xy, rescale_xy, no_norm_loc_data, output_loc_GT, output_mask
 
     def postprocess(self, input_data, perturbation, *args):
         predicted, ori_data, mean_xy, rescale_xy, no_norm_loc_data = args
@@ -135,11 +136,28 @@ class GRIPDataLoader(DataLoader):
             predicted[n,1,:,:] += mean_y
 
         if perturbation is not None:
-            input_data["objects"][str(perturbation["obj_id"])]["observe_trace"] += perturbation["clamp_value"].detach().cpu().numpy()
-            predict_trace = torch.transpose(predicted[0,:,:,perturbation["obj_index"]], 0, 1)
-            future_trace = torch.from_numpy(input_data["objects"][str(perturbation["obj_id"])]["future_trace"]).cuda()
-            # print(future_trace - predict_trace)
-            loss = perturbation["loss"](predict_trace, future_trace, perturbation["clamp_value"])
+        # get object index of perturbation target if any
+            obj_index = {_obj_id:index for index, _obj_id in enumerate(list(input_data["objects"].keys()))}
+            for _obj_id in perturbation["ready_value"]:
+                input_data["objects"][str(_obj_id)]["perturbation"] = perturbation["ready_value"][_obj_id].detach().cpu().numpy()
+                input_data["objects"][str(_obj_id)]["observe_trace"] += input_data["objects"][str(_obj_id)]["perturbation"]
+            if "loss" in perturbation and perturbation["loss"] is not None:
+                observe_traces = {}
+                future_traces = {}
+                predict_traces = {}
+
+                for _obj_id in input_data["objects"]:
+                    observe_traces[_obj_id] = torch.from_numpy(input_data["objects"][str(_obj_id)]["observe_trace"]).cuda()
+                    future_traces[_obj_id] = torch.from_numpy(input_data["objects"][str(_obj_id)]["future_trace"]).cuda()
+                    predict_traces[_obj_id] = torch.transpose(predicted[0,:,:,obj_index[_obj_id]], 0, 1)
+                
+                if "attack_opts" in perturbation:
+                    attack_opts = perturbation["attack_opts"]
+                else:
+                    attack_opts = None
+                loss = perturbation["loss"](observe_traces, future_traces, predict_traces, perturbation["obj_id"], perturbation["ready_value"][perturbation["obj_id"]], **attack_opts)
+            else:
+                loss = None
         else:
             loss = None
 

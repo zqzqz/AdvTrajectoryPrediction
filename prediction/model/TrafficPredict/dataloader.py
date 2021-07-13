@@ -2,7 +2,7 @@ import os, sys
 import logging
 import pickle
 import random
-from prediction.base.dataloader import DataLoader
+from prediction.model.base.dataloader import DataLoader
 import numpy as np
 
 class TrafficPredictDataLoader(DataLoader):

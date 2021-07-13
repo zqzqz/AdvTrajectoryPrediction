@@ -21,7 +21,7 @@ from helper import (
 from model import SRNN
 from st_graph import ST_GRAPH
 from .dataloader import TrafficPredictDataLoader
-from prediction.base.interface import Interface
+from prediction.model.base.interface import Interface
 
 class TrafficPredictInterface(Interface):
     def __init__(self, dataset_name, obs_length, pred_length):
