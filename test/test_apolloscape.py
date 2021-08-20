@@ -5,7 +5,10 @@ from prediction.dataset.apolloscape import ApolloscapeDataset
 
 def test_apolloscape():
     dataset = ApolloscapeDataset(6, 6, 0.5)
-    for input_data in dataset.val_data_generator():
+    dataset.generate_data("train")
+    dataset.generate_data("test")
+    print(dataset.data_size("test"))
+    for input_data in dataset.data_generator("train"):
         print(input_data)
         break
 

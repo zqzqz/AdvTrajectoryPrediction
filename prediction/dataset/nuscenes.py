@@ -1,22 +1,24 @@
 import os
 import numpy as np
 import random
+from nuscenes.nuscenes import NuScenes
+from nuscenes.map_expansion.map_api import NuScenesMap
 
 from .base import BaseDataset
 
 
-class ApolloscapeDataset(BaseDataset):
-    def __init__(self, obs_length, pred_length, time_step=0.5):
+class NuScenesDataset(BaseDataset):
+    def __init__(self, obs_length, pred_length, time_step):
         super().__init__(obs_length, pred_length, time_step)
 
-        self.data_dir =  os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../data/apolloscape/")
-        self.test_data_dir = os.path.join(self.data_dir, "prediction_test")
-        self.val_data_dir = os.path.join(self.data_dir, "prediction_val")
-        self.train_data_dir = os.path.join(self.data_dir, "prediction_train")
+        self.data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../data/nuScenes/")
+        self.train_data_path = os.path.join(self.data_dir, "prediction_train")
+        self.test_data_path = os.path.join(self.data_dir, "prediction_test")
+        self.val_data_path = os.path.join(self.data_dir, "prediction_val")
         self.data_path = {
-            "train": self.train_data_dir,
-            "val": self.val_data_dir,
-            "test": self.test_data_dir
+            "train": self.train_data_path,
+            "val": self.val_data_path,
+            "test": self.test_data_path
         }
         self.data = {
             "train": [],
@@ -24,16 +26,41 @@ class ApolloscapeDataset(BaseDataset):
             "test": []
         }
 
+        self.map_name_path = os.path.join(self.data_dir, "map_name.txt")
+        self.scene_map = self.get_scene_map(self.map_name_path)
+        self.maps = self.get_maps()
+
         self.default_time_step = 0.5
         self.skip_step = int(self.time_step / self.default_time_step)
         self.feature_dimension = 5
+
+    def get_scene_map(self, map_name_path):
+        scene_map = {}
+        with open(map_name_path, 'r') as f:
+            lines = f.readlines()
+            for line in lines:
+                tokens = line[:-1].split(' ')
+                scene_name, map_name = tokens[1], tokens[2]
+                scene_map[scene_name] = map_name
+        return scene_map
+
+    def get_map(self, map_name):
+        nusc_map = NuScenesMap(dataroot=self.data_dir, map_name=map_name)
+        return nusc_map
+
+    def get_maps(self):
+        maps = {}
+        unique_maps = list(set(self.scene_map.values()))
+        for map_name in unique_maps:
+            maps[map_name] = self.get_map(map_name)
+        return maps
 
     def format_data(self, data_dir, allow_incomplete_traces=True, allow_invisible_objects=True, require_one_complete=True, require_one_visible=True):
         files = os.listdir(data_dir)
         for filename in files:
             file_path = os.path.join(data_dir, filename)
+            scene_name = filename.split('.')[0]
             data = np.genfromtxt(file_path, delimiter=" ")
-            print(np.max(data, axis=0))
             data = data[~(data[:, 2] == 5)]
             start_frame_id = int(np.min(data[:,0]))
 
@@ -46,7 +73,9 @@ class ApolloscapeDataset(BaseDataset):
                     "predict_length": self.pred_length,
                     "time_step": self.time_step,
                     "feature_dimension": self.feature_dimension,
-                    "objects": {}
+                    "objects": {},
+                    "map_name": self.scene_map[scene_name],
+                    "scene_name": scene_name
                 }
 
                 # fill data
@@ -57,11 +86,14 @@ class ApolloscapeDataset(BaseDataset):
                     for obj_index in range(frame_data.shape[0]):
                         obj_data = frame_data[obj_index, :]
                         obj_id = str(int(obj_data[1]))
+                        obj_type = int(obj_data[2])
+                        if obj_type > 3:
+                            continue
 
                         if obj_id not in input_data["objects"]:
                             if local_frame_id < self.obs_length:
                                 input_data["objects"][obj_id] = {
-                                    "type": int(obj_data[2]),
+                                    "type": obj_type,
                                     "complete": True,
                                     "visible": True,
                                     "observe_trace": np.zeros((self.obs_length,2)),

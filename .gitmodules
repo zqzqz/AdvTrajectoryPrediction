@@ -10,3 +10,6 @@
 	path = prediction/GRIP/GRIP
 	url = https://github.com/xincoder/GRIP.git
 	ignore = all
+[submodule "prediction/model/EncDec/conv-social-pooling"]
+	path = prediction/model/EncDec/conv-social-pooling
+	url = https://github.com/nachiket92/conv-social-pooling.git

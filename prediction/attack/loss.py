@@ -1,10 +1,10 @@
 import torch
 
-def ade(future_trace, predict_trace):
+def ade(predict_trace, future_trace):
     return torch.sum(torch.square(predict_trace - future_trace)) / predict_trace.shape[0]
 
 
-def fde(future_trace, predict_trace):
+def fde(predict_trace, future_trace):
     return torch.sum(torch.square(predict_trace[-1,:] - future_trace[-1,:]))
 
 
@@ -39,32 +39,55 @@ def square_distance(point1, point2):
     return torch.sum(torch.square(point1 - point2))
 
 
-def cutin_attack_goal(predict_traces, obj_id, **attack_opts):
+def change_lane_attack_goal(predict_traces, future_traces, obj_id, **attack_opts):
     attacker_predict_trace = predict_traces[obj_id]
+    # attacker_future_trace = future_traces[obj_id]
     victim_predict_trace = predict_traces[attack_opts["target_obj_id"]]
     extended_attacker_predict_trace = interpolation(attacker_predict_trace)
     extended_victim_predict_trace = interpolation(victim_predict_trace)
+    # extended_attacker_future_trace = interpolation(attacker_future_trace)
 
     distance1 = torch.min(torch.sum(torch.square(extended_attacker_predict_trace - extended_victim_predict_trace), 1))
     distance2 = torch.min(torch.cdist(extended_attacker_predict_trace, extended_victim_predict_trace, p=2))
     return distance1 + distance2
 
 
-def ade_loss(observe_traces, future_traces, predict_traces, obj_id, perturbation, **attack_opts):
-    return perturbation_cost(perturbation) - ade(predict_traces[obj_id], future_traces[obj_id])
+def horizonal_distance(observe_trace, predict_trace, future_trace):
+    offset = predict_trace - future_trace
+    direction = (future_trace - 
+                 torch.cat(
+                   (torch.reshape(observe_trace[-1,:], (1,2)), 
+                    future_trace[:-1,:]), 0))
+    scale = torch.sqrt(torch.sum(torch.square(direction), 1))
+    direction[:,0] = direction[:,0] / scale
+    direction[:,1] = direction[:,1] / scale
+    right_direction = torch.matmul(
+                        torch.tensor([[0., 1.], [-1., 0.]]).float().to("cuda"),
+                        direction.t().float()).t()
+    average_distance = torch.sum(offset * right_direction) / predict_trace.shape[0]
+    return average_distance
 
 
-def fde_loss(observe_traces, future_traces, predict_traces, obj_id, perturbation, **attack_opts):
-    return perturbation_cost(perturbation) - fde(predict_traces[obj_id], future_traces[obj_id])
+def vertical_distance(observe_trace, predict_trace, future_trace):
+    offset = predict_trace - future_trace
+    direction = (future_trace - 
+                 torch.cat(
+                   (torch.reshape(observe_trace[-1,:], (1,2)), 
+                    future_trace[:-1,:]), 0))
+    scale = torch.sqrt(torch.sum(torch.square(direction), 1))
+    direction[:,0] = direction[:,0] / scale
+    direction[:,1] = direction[:,1] / scale
+    average_distance = torch.sum(offset * direction) / predict_trace.shape[0]
+    return average_distance
 
 
 def attack_loss(observe_traces, future_traces, predict_traces, obj_id, perturbation, **attack_opts):
     if "perturbation_cost_c" not in attack_opts:
-        attack_opts["perturbation_cost_c"] = 1
+        attack_opts["perturbation_cost_c"] = 0.1
     if "physical_constraint_c" not in attack_opts:
-        attack_opts["physical_constraint_c"] = 1
+        attack_opts["physical_constraint_c"] = 0.1
     if "attack_goal_c" not in attack_opts:
-        attack_opts["attack_goal_c"] = 5
+        attack_opts["attack_goal_c"] = 10
 
 
     attacker_observe_trace = observe_traces[obj_id]
@@ -72,10 +95,19 @@ def attack_loss(observe_traces, future_traces, predict_traces, obj_id, perturbat
     loss = attack_opts["perturbation_cost_c"] * perturbation_cost(perturbation) + attack_opts["physical_constraint_c"] * perturbation_physical_constraint(attacker_observe_trace, attacker_perturbed_trace)
 
     if "type" in attack_opts:
-        if attack_opts["type"] == "cutin":
-            loss += attack_opts["attack_goal_c"] * cutin_attack_goal(predict_traces, obj_id, **attack_opts)
-        elif attack_opts["type"] == "cutoff":
-            loss -= attack_opts["attack_goal_c"] * cutin_attack_goal(predict_traces, obj_id, **attack_opts)
+        attack_goal = attack_opts["type"]
+        if attack_goal == "ade":
+            loss -= attack_opts["attack_goal_c"] * ade(predict_traces[obj_id], future_traces[obj_id])
+        elif attack_goal == "fde":
+            loss -= attack_opts["attack_goal_c"] * fde(predict_traces[obj_id], future_traces[obj_id])
+        elif attack_goal == "left":
+            loss += attack_opts["attack_goal_c"] * horizonal_distance(observe_traces[obj_id], predict_traces[obj_id], future_traces[obj_id])
+        elif attack_goal == "right":
+            loss -= attack_opts["attack_goal_c"] * horizonal_distance(observe_traces[obj_id], predict_traces[obj_id], future_traces[obj_id])
+        elif attack_goal == "front":
+            loss -= attack_opts["attack_goal_c"] * vertical_distance(observe_traces[obj_id], predict_traces[obj_id], future_traces[obj_id])
+        elif attack_goal == "rear":
+            loss += attack_opts["attack_goal_c"] * vertical_distance(observe_traces[obj_id], predict_traces[obj_id], future_traces[obj_id])
         else:
             raise NotImplementedError()
 

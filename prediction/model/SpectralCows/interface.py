@@ -17,24 +17,19 @@ from def_train_eval import compute_accuracy_stream1
 from models import *
 
 class SpectralCowsInterface(Interface):
-    def __init__(self, dataset_name, obs_length, pred_length):
-        super().__init__(dataset_name, obs_length, pred_length)
+    def __init__(self, obs_length, pred_length, pre_load_model=None):
+        super().__init__(obs_length, pred_length)
 
-        self.repo_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Spectral-Trajectory-and-Behavior-Prediction")
-        self.trained_model_dir = os.path.join(self.repo_dir, "resources/trained_models/Ours/APOL")
-        self.data_dir = os.path.join(self.repo_dir, "resources/data/LYFT")
-        with open(os.path.join(self.data_dir, "stream1_obs_data_test.pkl"), 'rb') as f1:
-            self.tr_seq_1 = pickle.load(f1)
-        with open(os.path.join(self.data_dir, "stream1_pred_data_test.pkl"), 'rb') as g1:
-            self.pred_seq_1 = pickle.load(g1)
+        self.device = torch.device("cuda")
 
-        self.dataloader = SpectralCowsDataLoader(
-            self.dataset, self.obs_length, self.pred_length
-        )
+        input_dim = hidden_dim = output_dim = 2
 
-    def data(self):
-        # TODO: finish the preprocessing part of the dataloader
-        return None
+        self.encoder_stream1 = Encoder(input_dim, hidden_dim, output_dim).to(self.device)
+        self.decoder_stream1 = Decoder('s1', input_dim , hidden_dim , output_dim, 1, obs_length).to(self.device)
+        self.encoder_stream1.load_state_dict(torch.load(self.pre_load_model[0]))
+        self.encoder_stream1.eval()       
+        self.decoder_stream1.load_state_dict(torch.load(self.pre_load_model[1]))        
+        self.decoder_stream1.eval()
 
     def run(self, input_data):
         # in `main.py`
@@ -58,8 +53,8 @@ class SpectralCowsInterface(Interface):
 
         train_raw = self.tr_seq_1
         pred_raw = self.pred_seq_1
-    #    train2_raw = tr_seq_2
-    #    pred2_raw = pred_seq_2
+        #    train2_raw = tr_seq_2
+        #    pred2_raw = pred_seq_2
         # Initialize encoder, decoders for both streams
         batch = load_batch ( 0 , self.batch_size , 'pred' , train_raw , pred_raw , [], [], [], [] )
         batch , _, _ = batch

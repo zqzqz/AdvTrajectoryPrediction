@@ -8,4 +8,4 @@ class BaseAttacker():
         self.full_trace_length = self.obs_length + self.pred_length + self.attack_duration - 1
         self.perturb_length = self.obs_length + self.attack_duration - 1
 
-        self.predictor = predictor(None, self.obs_length, self.pred_length)
+        self.predictor = predictor

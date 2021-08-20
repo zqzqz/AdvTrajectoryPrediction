@@ -5,7 +5,8 @@ from prediction.dataset.ngsim import NGSIMDataset
 
 def test_ngsim():
     dataset = NGSIMDataset(6, 6, 0.5)
-    for input_data in dataset.test_data_generator():
+    dataset.generate_data("train")
+    for input_data in dataset.data_generator("train"):
         print(input_data)
         break
 

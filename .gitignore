@@ -1,8 +1,12 @@
 /prediction/model/TrafficPredict/TrafficPredict
+/prediction/model/TrafficPredict/dataset-api
 /prediction/model/SpectralCows/Spectral-Trajectory-and-Behavior-Prediction
 /prediction/model/GRIP/GRIP
+/prediction/model/Trajectron/Trajectron-plus-plus
+/test/data
 
 # general
+nohup.out
 *.old
 tmp*
 *.tmp
@@ -16,6 +20,7 @@ tmp*
 !/data/apolloscape/README.md
 /data/NGSIM/*
 !/data/apolloscape/preprocessing.m
+/data/nuscenes/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

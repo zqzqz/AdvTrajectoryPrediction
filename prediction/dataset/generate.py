@@ -6,6 +6,25 @@ import copy
 from .utils import json_to_data
 
 
+def add_flags(data):
+    for _, obj in data["objects"].items():
+        obj["observe_mask"] = (obj["observe_trace"][:,0] > 0).astype(np.int64)
+        obj["future_mask"] = (obj["future_trace"][:,0] > 0).astype(np.int64)
+        
+        if np.min(np.concatenate((obj["observe_mask"], obj["future_mask"]), axis=0)) <= 0:
+            obj["complete"] = False
+        else:
+            obj["complete"] = True
+
+        if np.min(obj["observe_mask"][-1]) <= 0:
+            obj["visible"] = False
+        else:
+            obj["visible"] = True
+    
+    return data
+
+
+# deprecated
 def output_data_online_generator(api):
     index = 0
     for input_data in api.data():
@@ -14,7 +33,7 @@ def output_data_online_generator(api):
         index += 1
 
 
-def output_data_offline_generator(data_dir):
+def data_offline_generator(data_dir):
     for filename in os.listdir(data_dir):
         name, extension = os.path.splitext(filename)
         if extension != ".json":
@@ -25,7 +44,7 @@ def output_data_offline_generator(data_dir):
             yield name, output_data
 
 
-def output_data_offline_by_name(data_dir, name):
+def data_offline_by_name(data_dir, name):
     file_path = os.path.join(data_dir, "{}.json".format(name))
     with open(file_path, "r") as f:
         output_data = json_to_data(json.load(f))
@@ -33,17 +52,19 @@ def output_data_offline_by_name(data_dir, name):
 
 
 def input_data_by_attack_step(data, obs_length, pred_length, attack_step):
-    input_data = {
-        "observe_length": obs_length,
-        "predict_length": pred_length,
-        "objects": {}
-    }
+    input_data = {"objects": {}}
+    for key, value in data.items():
+        if key != "objects":
+            input_data[key] = value
+    input_data["observe_length"] = obs_length
+    input_data["predict_length"] = pred_length
+
     k = attack_step
     for _obj_id, obj in data["objects"].items():
-        feature = np.concatenate((obj["observe_feature"], obj["future_feature"]), axis=0)
+        feature = obj["observe_feature"]
         observe_feature = copy.deepcopy(feature[k:k+obs_length,:])
         future_feature = copy.deepcopy(feature[k+obs_length:k+obs_length+pred_length,:])
-        trace = np.concatenate((obj["observe_trace"], obj["future_trace"]), axis=0)
+        trace = obj["observe_trace"]
         observe_trace = copy.deepcopy(trace[k:k+obs_length,:])
         future_trace = copy.deepcopy(trace[k+obs_length:k+obs_length+pred_length,:])
         new_obj = {
@@ -55,5 +76,6 @@ def input_data_by_attack_step(data, obs_length, pred_length, attack_step):
             "predict_trace": np.zeros((pred_length,2)),
         }
         input_data["objects"][_obj_id] = new_obj
-
+    
+    input_data = add_flags(input_data)
     return input_data

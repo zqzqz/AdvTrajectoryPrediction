@@ -1,33 +1,66 @@
-from prediction.dataset.generate import *
-from .metrics import ade, fde
+from .base import Evaluator
+from .utils import ade, fde
 
-def multi_frame_prediction(data, api, duration, perturbation=None):
-    outputs = {}
-    for k in range(duration):
-        input_data = input_data_by_attack_step(data, api.obs_length, api.pred_length, k)
-        if perturbation is None:
-            output_data = api.run(input_data, perturbation=None, mode="eval")
+import numpy as np
+
+
+class SingleFrameEvaluator(Evaluator):
+    def __init__(self):
+        super().__init__()
+        self.metric_map = {
+            "ade": self.ade,
+            "fde": self.fde
+        }
+
+    def get_obj_ids(self, data):
+        obj_ids = []
+
+        if "obj_id" in data:
+            obj_ids.append(data["obj_id"])
         else:
-            raise NotImplementedError()
-        outputs[str(k)] = output_data
-    return {
-        "attack_length": duration,
-        "output_data": outputs
-    }
+            for obj_id, obj in data["objects"].items():
+                if obj["complete"] and np.min(obj["predict_trace"]) > 0:
+                    obj_ids.append(obj_id)
+        
+        return obj_ids
+
+    def ade(self, data):
+        result = []
+
+        obj_ids = self.get_obj_ids(data)
+
+        for obj_id in obj_ids:
+            result.append(ade(data["objects"][obj_id]["predict_trace"],
+                              data["objects"][obj_id]["future_trace"]))
+
+        return result
+
+    def fde(self, data):
+        result = []
+
+        obj_ids = self.get_obj_ids(data)
+
+        for obj_id in obj_ids:
+            result.append(fde(data["objects"][obj_id]["predict_trace"],
+                              data["objects"][obj_id]["future_trace"]))
+
+        return result
 
 
-def evaluate_error(IN, online=True):
-    ade_list = []
-    fde_list = []
-
-    if online:
-        generator = output_data_online_generator(IN)
-    else:
-        generator = output_data_offline_generator(IN)
+class MultiFrameEvaluator(Evaluator):
+    def __init__(self):
+        super().__init__()
+        self.metric_map = {
+            "ade": self.ade,
+            "fde": self.fde
+        }
     
-    for _, output_data in generator:
-        for _, obj in output_data["objects"].items():
-            ade_list.append(ade(obj["future_trace"], obj["predict_trace"]))
-            fde_list.append(fde(obj["future_trace"], obj["predict_trace"]))
+    def ade(self, data):
+        result = []
 
-    return ade_list, fde_list
+        return result
+
+    def fde(self, data):
+        result = []
+
+        return result

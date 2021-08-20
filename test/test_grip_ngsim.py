@@ -1,6 +1,6 @@
 import os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
-from prediction.dataset import ApolloscapeDataset
+from prediction.dataset import NGSIMDataset
 from prediction.dataset.generate import data_offline_generator
 from prediction.model.GRIP import GRIPInterface
 from prediction.visualize.visualize import *
@@ -10,45 +10,42 @@ from test_utils import *
 import numpy as np
 import copy
 
-DATADIR = "data/grip_apolloscape"
-obs_length = 6
-pred_length = 6
-attack_length = 6
-time_step = 0.5
+DATADIR = "data/grip_ngsim"
+obs_length = 15
+pred_length = 25
+attack_length = 15
+time_step = 0.2
 
+api = GRIPInterface(obs_length, pred_length, pre_load_model=os.path.join(DATADIR, "model", "best_model.pt"), num_node=260, in_channels=3)
+api.rescale = [30, 2200]
 
 def test():
-    api = GRIPInterface(obs_length, pred_length, pre_load_model=os.path.join(DATADIR, "model", "model_epoch_0049.pt"))
-
     print("Generating single frame test data")
-    singleframe_data(os.path.join(DATADIR, "single_frame", "raw"), ApolloscapeDataset, obs_length, pred_length, time_step)
+    singleframe_data(os.path.join(DATADIR, "single_frame", "raw"), NGSIMDataset, obs_length, pred_length, time_step)
     print("Doing prediction on single-frame tasks")
     normal_singleframe_test(api, os.path.join(DATADIR, "single_frame", "raw"), os.path.join(DATADIR, "single_frame", "normal"))
     print("Evaluating single-frame prediction results")
     singleframe_evaluate(os.path.join(DATADIR, "single_frame", "normal"), os.path.join(DATADIR, "single_frame", "normal_report.json"))
 
     print("Generating multi frame test data")
-    multiframe_data(os.path.join(DATADIR, "multi_frame", "raw"), ApolloscapeDataset, obs_length, pred_length, attack_length, time_step)
+    multiframe_data(os.path.join(DATADIR, "multi_frame", "raw"), NGSIMDataset, obs_length, pred_length, attack_length, time_step)
     print("Doing prediction on multi-frame tasks")
     normal_multiframe_test(api, os.path.join(DATADIR, "multi_frame", "raw"), os.path.join(DATADIR, "multi_frame", "normal"), attack_length)
 
 
 def visualize():
-    # print("Visualizing multi frame test data")
-    # raw_multiframe_visualize(os.path.join(DATADIR, "multi_frame", "raw"), os.path.join(DATADIR, "multi_frame", "raw_visualize"))
+    print("Visualizing multi frame test data")
+    raw_multiframe_visualize(os.path.join(DATADIR, "multi_frame", "raw"), os.path.join(DATADIR, "multi_frame", "raw_visualize"))
     print("Visualizing multi frame prediction")
     normal_multiframe_visualize(os.path.join(DATADIR, "multi_frame", "normal"), os.path.join(DATADIR, "multi_frame", "normal_visualize"))
 
 
 def attack():
-    api = GRIPInterface(obs_length, pred_length, pre_load_model=os.path.join(DATADIR, "model", "model_epoch_0049.pt"))
     attacker = GradientAttacker(obs_length, pred_length, attack_length, api)
-
     adv_attack(attacker, os.path.join(DATADIR, "multi_frame", "raw"), os.path.join(DATADIR, "multi_frame", "attack"), os.path.join(DATADIR, "multi_frame", "attack_visualize"), overwrite=True)
 
 
 def attack_sample(case_id, obj_id):
-    api = GRIPInterface(obs_length, pred_length, pre_load_model=os.path.join(DATADIR, "model", "model_epoch_0049.pt"))
     attacker = GradientAttacker(obs_length, pred_length, attack_length, api)
     result_dir = os.path.join(DATADIR, "multi_frame", "attack")
     figure_dir = os.path.join(DATADIR, "multi_frame", "attack_visualize")
@@ -62,8 +59,7 @@ def attack_sample(case_id, obj_id):
 
 
 if __name__ == "__main__":
-    # test()
-    # attack()
-    # visualize()
-    attack_sample(133, 1)
+    test()
+    visualize()
+    # attack_sample(133, 1)
     # attack()
