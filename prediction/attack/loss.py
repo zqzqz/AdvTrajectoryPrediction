@@ -59,11 +59,9 @@ def horizonal_distance(observe_trace, predict_trace, future_trace):
                    (torch.reshape(observe_trace[-1,:], (1,2)), 
                     future_trace[:-1,:]), 0))
     scale = torch.sqrt(torch.sum(torch.square(direction), 1))
-    direction[:,0] = direction[:,0] / scale
-    direction[:,1] = direction[:,1] / scale
     right_direction = torch.matmul(
                         torch.tensor([[0., 1.], [-1., 0.]]).float().to("cuda"),
-                        direction.t().float()).t()
+                        direction.t().float() / scale).t()
     average_distance = torch.sum(offset * right_direction) / predict_trace.shape[0]
     return average_distance
 
@@ -75,9 +73,7 @@ def vertical_distance(observe_trace, predict_trace, future_trace):
                    (torch.reshape(observe_trace[-1,:], (1,2)), 
                     future_trace[:-1,:]), 0))
     scale = torch.sqrt(torch.sum(torch.square(direction), 1))
-    direction[:,0] = direction[:,0] / scale
-    direction[:,1] = direction[:,1] / scale
-    average_distance = torch.sum(offset * direction) / predict_trace.shape[0]
+    average_distance = torch.sum(offset * (direction.t().float() / scale).t()) / predict_trace.shape[0]
     return average_distance
 
 

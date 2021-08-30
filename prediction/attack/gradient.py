@@ -27,7 +27,7 @@ class GradientAttacker(BaseAttacker):
             self.predictor.model.train()
         except:
             pass
-        
+
         perturbation = {"obj_id": obj_id, "loss": self.loss, "value": {}, "ready_value": {}, "attack_opts": attack_opts}
         
         if "mode" in attack_opts:
@@ -78,7 +78,7 @@ class GradientAttacker(BaseAttacker):
 
                 if loss.item() < best_loss:
                     best_loss = loss.item()
-                    best_perturb = {_obj_id:torch.clamp(value, min=-self.bound, max=self.bound).cpu().clone().detach().numpy() for _obj_id, value in perturbation["value"].items()}
+                    best_perturb = {_obj_id:torch.clamp(value, min=-self.bound, max=self.bound).cpu().clone().detach().numpy() for _obj_id, value in perturbation["ready_value"].items()}
                     best_iter = i
                     best_out = total_out
 

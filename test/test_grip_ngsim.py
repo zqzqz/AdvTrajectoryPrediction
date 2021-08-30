@@ -11,6 +11,7 @@ import numpy as np
 import copy
 
 DATADIR = "data/grip_ngsim"
+DATASET_DIR = "data/dataset/ngsim"
 obs_length = 15
 pred_length = 25
 attack_length = 15
@@ -21,16 +22,16 @@ api.rescale = [30, 2200]
 
 def test():
     print("Generating single frame test data")
-    singleframe_data(os.path.join(DATADIR, "single_frame", "raw"), NGSIMDataset, obs_length, pred_length, time_step)
-    print("Doing prediction on single-frame tasks")
-    normal_singleframe_test(api, os.path.join(DATADIR, "single_frame", "raw"), os.path.join(DATADIR, "single_frame", "normal"))
-    print("Evaluating single-frame prediction results")
-    singleframe_evaluate(os.path.join(DATADIR, "single_frame", "normal"), os.path.join(DATADIR, "single_frame", "normal_report.json"))
+    singleframe_data(os.path.join(DATASET_DIR, "single_frame", "raw"), NGSIMDataset, obs_length, pred_length, time_step)
+    # print("Doing prediction on single-frame tasks")
+    # normal_singleframe_test(api, os.path.join(DATADIR, "single_frame", "raw"), os.path.join(DATADIR, "single_frame", "normal"))
+    # print("Evaluating single-frame prediction results")
+    # singleframe_evaluate(os.path.join(DATADIR, "single_frame", "normal"), os.path.join(DATADIR, "single_frame", "normal_report.json"))
 
-    print("Generating multi frame test data")
-    multiframe_data(os.path.join(DATADIR, "multi_frame", "raw"), NGSIMDataset, obs_length, pred_length, attack_length, time_step)
-    print("Doing prediction on multi-frame tasks")
-    normal_multiframe_test(api, os.path.join(DATADIR, "multi_frame", "raw"), os.path.join(DATADIR, "multi_frame", "normal"), attack_length)
+    # print("Generating multi frame test data")
+    # multiframe_data(os.path.join(DATADIR, "multi_frame", "raw"), NGSIMDataset, obs_length, pred_length, attack_length, time_step)
+    # print("Doing prediction on multi-frame tasks")
+    # normal_multiframe_test(api, os.path.join(DATADIR, "multi_frame", "raw"), os.path.join(DATADIR, "multi_frame", "normal"), attack_length)
 
 
 def visualize():
@@ -60,6 +61,6 @@ def attack_sample(case_id, obj_id):
 
 if __name__ == "__main__":
     test()
-    visualize()
+    # visualize()
     # attack_sample(133, 1)
     # attack()

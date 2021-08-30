@@ -150,4 +150,7 @@ def adv_attack(attacker, data_dir, result_dir, figure_dir, overwrite=False):
                 if os.path.isfile(result_path):
                     continue
 
-                adv_attack_core(attacker, input_data, obj_id, attack_goal, result_path, figure_path)
+                try:
+                    adv_attack_core(attacker, input_data, obj_id, attack_goal, result_path, figure_path)
+                except Exception as e:
+                    print(e)

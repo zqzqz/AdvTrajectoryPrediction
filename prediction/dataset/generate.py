@@ -20,6 +20,14 @@ def add_flags(data):
             obj["visible"] = False
         else:
             obj["visible"] = True
+
+        obj["static"] = False
+        trace = obj["observe_trace"][obj["observe_mask"]>0,:]
+        if trace.shape[0] > 1:
+            v = trace[1:,:] - trace[:-1,:]
+            v = np.sum(v ** 2, axis=1)
+            if np.sum(v > 0) < v.shape[0]:
+                obj["static"] = True
     
     return data
 

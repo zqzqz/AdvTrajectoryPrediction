@@ -34,6 +34,18 @@ class NuScenesDataset(BaseDataset):
         self.skip_step = int(self.time_step / self.default_time_step)
         self.feature_dimension = 5
 
+        self.xy_mean = np.array([132.04209346, 127.59561989])
+        self.xy_std = np.array([47.65086468, 43.83605424])
+        self.xy_min = np.array([49.502, 49.507])
+        self.xy_max = np.array([405.27, 357.274])
+
+        self.xy_distribution = {
+            "mean": self.xy_mean,
+            "std": self.xy_std,
+            "min": self.xy_min,
+            "max": self.xy_max,
+        }
+
     def get_scene_map(self, map_name_path):
         scene_map = {}
         with open(map_name_path, 'r') as f:
@@ -58,6 +70,8 @@ class NuScenesDataset(BaseDataset):
     def format_data(self, data_dir, allow_incomplete_traces=True, allow_invisible_objects=True, require_one_complete=True, require_one_visible=True):
         files = os.listdir(data_dir)
         for filename in files:
+            if filename.split('.')[-1] != "txt":
+                continue
             file_path = os.path.join(data_dir, filename)
             scene_name = filename.split('.')[0]
             data = np.genfromtxt(file_path, delimiter=" ")

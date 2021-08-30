@@ -6,7 +6,7 @@ from .base import BaseDataset
 
 
 class ApolloscapeDataset(BaseDataset):
-    def __init__(self, obs_length, pred_length, time_step=0.5):
+    def __init__(self, obs_length, pred_length, time_step=0.5, sample_step=1):
         super().__init__(obs_length, pred_length, time_step)
 
         self.data_dir =  os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../data/apolloscape/")
@@ -27,18 +27,32 @@ class ApolloscapeDataset(BaseDataset):
         self.default_time_step = 0.5
         self.skip_step = int(self.time_step / self.default_time_step)
         self.feature_dimension = 5
+        self.sample_step = sample_step
+
+        self.xy_mean = np.array([127.4431223, 102.740081])
+        self.xy_std = np.array([124.44508522, 71.96368189])
+        self.xy_min = np.array([0.389, 0.674])
+        self.xy_max = np.array([708.908, 348.585])
+
+        self.xy_distribution = {
+            "mean": self.xy_mean,
+            "std": self.xy_std,
+            "min": self.xy_min,
+            "max": self.xy_max,
+        }
 
     def format_data(self, data_dir, allow_incomplete_traces=True, allow_invisible_objects=True, require_one_complete=True, require_one_visible=True):
         files = os.listdir(data_dir)
         for filename in files:
+            if filename.split('.')[-1] != "txt":
+                continue
             file_path = os.path.join(data_dir, filename)
             data = np.genfromtxt(file_path, delimiter=" ")
-            print(np.max(data, axis=0))
             data = data[~(data[:, 2] == 5)]
             start_frame_id = int(np.min(data[:,0]))
 
             numFrames = len(np.unique(data[:, 0]))
-            numSlices = numFrames - (self.seq_length - 1) * self.skip_step + 1 + 1
+            numSlices = (numFrames - self.seq_length) // (self.sample_step * self.skip_step) + 1
 
             for slice_id in range(numSlices):
                 input_data = {
@@ -51,7 +65,7 @@ class ApolloscapeDataset(BaseDataset):
 
                 # fill data
                 for local_frame_id in range(self.seq_length):
-                    frame_id = start_frame_id + slice_id + local_frame_id * self.skip_step
+                    frame_id = start_frame_id + slice_id * self.sample_step * self.skip_step + local_frame_id * self.skip_step
                     frame_data = data[data[:, 0] == frame_id, :]
 
                     for obj_index in range(frame_data.shape[0]):

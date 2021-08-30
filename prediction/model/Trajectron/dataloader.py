@@ -29,11 +29,15 @@ class TrajectronDataLoader(DataLoader):
             for obj_id, obj in input_data["objects"].items():
                 if obj["observe_mask"][frame_id] < 1:
                     continue
+                # if obj["static"]:
+                #     continue
                 data.append([frame_id, int(obj_id), obj["type"], obj["observe_trace"][frame_id,:], obj["observe_feature"][frame_id,:]])
 
         for frame_id in range(pred_length):
             for obj_id, obj in input_data["objects"].items():
                 if obj["future_mask"][frame_id] < 1:
+                    continue
+                if obj["static"]:
                     continue
                 data.append([frame_id+obs_length, int(obj_id), obj["type"], obj["future_trace"][frame_id,:], obj["future_feature"][frame_id,:]])
 
@@ -55,12 +59,16 @@ class TrajectronDataLoader(DataLoader):
             for obj_id, obj in input_data["objects"].items():
                 if obj["observe_mask"][frame_id] < 1:
                     continue
+                # if obj["static"]:
+                #     continue
                 data.append([frame_id, int(obj_id), obj["type"], obj["observe_trace"][frame_id,:], obj["observe_feature"][frame_id,:]])
 
         for frame_id in range(pred_length):
             for obj_id, obj in input_data["objects"].items():
                 if obj["future_mask"][frame_id] < 1:
                     continue
+                # if obj["static"]:
+                #     continue
                 data.append([frame_id+obs_length, int(obj_id), obj["type"], obj["future_trace"][frame_id,:], obj["future_feature"][frame_id,:]])
 
         df_data = pd.DataFrame(columns=['frame_id',

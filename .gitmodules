@@ -13,3 +13,6 @@
 [submodule "prediction/model/EncDec/conv-social-pooling"]
 	path = prediction/model/EncDec/conv-social-pooling
 	url = https://github.com/nachiket92/conv-social-pooling.git
+[submodule "prediction/model/FQA/FQA"]
+	path = prediction/model/FQA/FQA
+	url = git@github.com:nitinkamra1992/FQA

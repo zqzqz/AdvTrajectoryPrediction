@@ -125,6 +125,10 @@ class TrajectronInterface(Interface):
         ht = self.obs_length - 1
         timesteps = np.array([ht])
 
+        observe_traces = {}
+        future_traces = {}
+        predict_traces = {}
+
         for node_type in self.env.NodeType:
             if node_type not in self.model.pred_state:
                 continue
@@ -179,25 +183,23 @@ class TrajectronInterface(Interface):
                                         all_z_sep=False)
 
             if perturbation is not None:
-                observe_traces = {}
-                future_traces = {}
-                predict_traces = {}
                 for i, n in enumerate(nodes):
                     if n.id != str(perturbation["obj_id"]):
                         continue
                     observe_traces[n.id] = x[i][:,:2]
                     future_traces[n.id] = y[i][:,:2]
                     predict_traces[n.id] = predictions[0][i][:,:2]
-                loss = perturbation["loss"](observe_traces, future_traces, predict_traces, 
-                                            perturbation["obj_id"], perturbation["ready_value"][perturbation["obj_id"]], **perturbation["attack_opts"])
-            else:
-                loss = None
 
             predictions_np = predictions.cpu().detach().numpy()
+            input_data = self.dataloader.postprocess(input_data, predictions_np, nodes, timesteps_o)
 
-        output_data = self.dataloader.postprocess(input_data, predictions_np, nodes, timesteps_o)
-        
-        if loss is None:
-            return output_data
+        if perturbation is not None:
+            loss = perturbation["loss"](observe_traces, future_traces, predict_traces, 
+                                        perturbation["obj_id"], perturbation["ready_value"][perturbation["obj_id"]], **perturbation["attack_opts"])
         else:
-            return output_data, loss
+            loss = None
+
+        if loss is None:
+            return input_data
+        else:
+            return input_data, loss
