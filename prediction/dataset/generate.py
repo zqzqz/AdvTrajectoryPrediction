@@ -41,15 +41,23 @@ def output_data_online_generator(api):
         index += 1
 
 
-def data_offline_generator(data_dir):
-    for filename in os.listdir(data_dir):
+def data_offline_generator(data_dir, sample=-1):
+    file_list = os.listdir(data_dir)
+    file_id_list = []
+    for filename in file_list:
         name, extension = os.path.splitext(filename)
-        if extension != ".json":
-            continue
-        file_path = os.path.join(data_dir, filename)
+        if extension == ".json":
+            file_id_list.append(int(name))
+    file_id_list.sort()
+    if sample > 0:
+        skip_step = len(file_id_list) // sample
+        file_id_list = file_id_list[::skip_step][:sample]
+
+    for file_id in file_id_list:
+        file_path = os.path.join(data_dir, "{}.json".format(file_id))
         with open(file_path, "r") as f:
             output_data = json_to_data(json.load(f))
-            yield name, output_data
+            yield str(file_id), output_data
 
 
 def data_offline_by_name(data_dir, name):

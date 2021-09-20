@@ -7,17 +7,20 @@ import copy
 
 from .attack import BaseAttacker
 from .loss import attack_loss
+from .constraint import hard_constraint
 from prediction.dataset.generate import input_data_by_attack_step
 
 logger = logging.getLogger(__name__)
 
 
 class GradientAttacker(BaseAttacker):
-    def __init__(self, obs_length, pred_length, attack_duration, predictor, iter_num=100, learn_rate=0.1, bound=0.5, seed_num=10):
+    def __init__(self, obs_length, pred_length, attack_duration, predictor, iter_num=100, learn_rate=0.05, learn_rate_decay=20, bound=1, physical_bounds={}, seed_num=10):
         super().__init__(obs_length, pred_length, attack_duration, predictor)
         self.iter_num = iter_num
         self.learn_rate = learn_rate
+        self.learn_rate_decay = learn_rate_decay
         self.bound = bound
+        self.physical_bounds = physical_bounds
         self.seed_num = seed_num
         
         self.loss = attack_loss
@@ -53,19 +56,28 @@ class GradientAttacker(BaseAttacker):
         best_perturb = None
 
         for seed in range(self.seed_num):
+            loss_not_improved_iter_cnt = 0
 
             for _obj_id in perturbation["value"]:
-                perturbation["value"][_obj_id] = Variable(torch.rand(self.obs_length+self.attack_duration-1,2).cuda() * 2 * self.bound - self.bound, requires_grad=True)
+                # perturbation["value"][_obj_id] = Variable(torch.rand(self.obs_length+self.attack_duration-1,2).cuda() * 2 * self.bound - self.bound, requires_grad=True)
+                perturbation["value"][_obj_id] = Variable(torch.zeros(self.obs_length+self.attack_duration-1,2).cuda(), requires_grad=True)
             opt_Adam = torch.optim.Adam(list(perturbation["value"].values()), lr=self.learn_rate)
 
+            local_best_loss = 0x7fffffff
             for i in range(self.iter_num):
+                if loss_not_improved_iter_cnt > 10:
+                    break
                 total_loss = []
                 total_out = {}
 
+                processed_perturbation = {}
+                for _obj_id in perturbation["value"]:
+                    processed_perturbation[_obj_id] = hard_constraint(data["objects"][_obj_id]["observe_trace"], perturbation["value"][_obj_id], self.bound, self.physical_bounds)
+
                 for k in range(self.attack_duration):
                     # construct perturbation
-                    for _obj_id in perturbation["value"]:
-                        perturbation["ready_value"][_obj_id] = torch.clamp(perturbation["value"][_obj_id][k:k+self.obs_length,:], min=-self.bound, max=self.bound)
+                    for _obj_id in processed_perturbation:
+                        perturbation["ready_value"][_obj_id] = processed_perturbation[_obj_id][k:k+self.obs_length,:]
                     # construct input_data
                     input_data = input_data_by_attack_step(data, self.obs_length, self.pred_length, k)
 
@@ -78,13 +90,25 @@ class GradientAttacker(BaseAttacker):
 
                 if loss.item() < best_loss:
                     best_loss = loss.item()
-                    best_perturb = {_obj_id:torch.clamp(value, min=-self.bound, max=self.bound).cpu().clone().detach().numpy() for _obj_id, value in perturbation["ready_value"].items()}
+                    best_perturb = {_obj_id:value.cpu().clone().detach().numpy() for _obj_id, value in processed_perturbation.items()}
                     best_iter = i
                     best_out = total_out
+
+                if loss.item() < local_best_loss:
+                    local_best_loss = loss.item()
+                    loss_not_improved_iter_cnt = 0
+                else:
+                    loss_not_improved_iter_cnt += 1
 
                 opt_Adam.zero_grad()
                 loss.backward()
                 opt_Adam.step()
+
+                grad_sum = 0
+                for _obj_id in perturbation["value"]:
+                    grad_sum += float(torch.sum(torch.absolute(perturbation["value"][_obj_id].grad)).item())
+                if grad_sum < 0.1:
+                    break
 
                 logger.warn("Seed {} step {} finished -- loss: {}; best loss: {};".format(seed, i, loss, best_loss))
 

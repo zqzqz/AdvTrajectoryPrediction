@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class GRIPInterface(Interface):
-    def __init__(self, obs_length, pred_length, pre_load_model=None, max_hop=2, num_node=120, in_channels=4):
+    def __init__(self, obs_length, pred_length, pre_load_model=None, max_hop=2, num_node=120, in_channels=4, rescale=[1,1]):
         super().__init__(obs_length, pred_length)
 
         self.graph_args = {'max_hop':max_hop, 'num_node':num_node}
@@ -34,7 +34,7 @@ class GRIPInterface(Interface):
         else:
             self.model = None
 
-        self.rescale = [1, 1]
+        self.rescale = rescale
 
     def default_model(self, in_channels=4):
         model = Model(in_channels=in_channels, graph_args=self.graph_args, edge_importance_weighting=True)

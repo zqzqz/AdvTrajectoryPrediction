@@ -57,8 +57,8 @@ def horizonal_distance(observe_trace, predict_trace, future_trace):
     direction = (future_trace - 
                  torch.cat(
                    (torch.reshape(observe_trace[-1,:], (1,2)), 
-                    future_trace[:-1,:]), 0))
-    scale = torch.sqrt(torch.sum(torch.square(direction), 1))
+                    future_trace[:-1,:]), 0)).float()
+    scale = torch.sqrt(torch.sum(torch.square(direction), 1)).float()
     right_direction = torch.matmul(
                         torch.tensor([[0., 1.], [-1., 0.]]).float().to("cuda"),
                         direction.t().float() / scale).t()
@@ -71,8 +71,8 @@ def vertical_distance(observe_trace, predict_trace, future_trace):
     direction = (future_trace - 
                  torch.cat(
                    (torch.reshape(observe_trace[-1,:], (1,2)), 
-                    future_trace[:-1,:]), 0))
-    scale = torch.sqrt(torch.sum(torch.square(direction), 1))
+                    future_trace[:-1,:]), 0)).float()
+    scale = torch.sqrt(torch.sum(torch.square(direction), 1)).float()
     average_distance = torch.sum(offset * (direction.t().float() / scale).t()) / predict_trace.shape[0]
     return average_distance
 
@@ -83,12 +83,13 @@ def attack_loss(observe_traces, future_traces, predict_traces, obj_id, perturbat
     if "physical_constraint_c" not in attack_opts:
         attack_opts["physical_constraint_c"] = 0.1
     if "attack_goal_c" not in attack_opts:
-        attack_opts["attack_goal_c"] = 10
+        attack_opts["attack_goal_c"] = 1
 
 
-    attacker_observe_trace = observe_traces[obj_id]
-    attacker_perturbed_trace = attacker_observe_trace + perturbation
-    loss = attack_opts["perturbation_cost_c"] * perturbation_cost(perturbation) + attack_opts["physical_constraint_c"] * perturbation_physical_constraint(attacker_observe_trace, attacker_perturbed_trace)
+    # attacker_observe_trace = observe_traces[obj_id]
+    # attacker_perturbed_trace = attacker_observe_trace + perturbation
+    # loss = attack_opts["perturbation_cost_c"] * perturbation_cost(perturbation) + attack_opts["physical_constraint_c"] * perturbation_physical_constraint(attacker_observe_trace, attacker_perturbed_trace)
+    loss = 0
 
     if "type" in attack_opts:
         attack_goal = attack_opts["type"]

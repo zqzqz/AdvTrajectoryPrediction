@@ -28,10 +28,6 @@ class GRIPDataLoader(DataLoader):
 
         total_feature_dimension = input_data["feature_dimension"] + 6
 
-        # get object index of perturbation target if any
-        if perturbation is not None:
-            obj_index = {_obj_id:index for index, _obj_id in enumerate(list(input_data["objects"].keys()))}
-
         # GRIP maintains invisible objects
         visible_object_id_list = []
         non_visible_object_id_list = []
@@ -43,6 +39,10 @@ class GRIPDataLoader(DataLoader):
         num_visible_object = len(visible_object_id_list)
         num_non_visible_object = len(non_visible_object_id_list)
 
+        # get object index of perturbation target if any
+        if perturbation is not None:
+            obj_index = {_obj_id:index for index, _obj_id in enumerate(visible_object_id_list)}
+        
         # compute the mean values of x and y for zero-centralization. 
         visible_object_value = np.array([
             np.concatenate((input_data["objects"][obj_id]["observe_trace"][self.obs_length-1,:],
@@ -134,12 +134,12 @@ class GRIPDataLoader(DataLoader):
         output_loc_GT = data[:,:2,self.obs_length:,:] # (N, C, T, V)=(N, 2, 6, 120)
         output_mask = data[:,-1:,self.obs_length:,:] # (N, C, T, V)=(N, 1, 6, 120)
         A = A.float().to(self.dev)
-
+                
         return _input_data, A, _ori_data, mean_xy, rescale_xy, no_norm_loc_data, output_loc_GT, output_mask
 
     def postprocess(self, input_data, perturbation, *args):
         predicted, ori_data, mean_xy, rescale_xy, no_norm_loc_data = args
-
+        
         predicted = predicted * rescale_xy
         ori_output_last_loc = no_norm_loc_data[:,:2,self.obs_length-1,:]
         predicted[:,:2,0,:] = ori_output_last_loc + predicted[:,:2,0,:]
@@ -150,19 +150,27 @@ class GRIPDataLoader(DataLoader):
             mean_x, mean_y = mean_xy[n,0], mean_xy[n,1]
             predicted[n,0,:,:] += mean_x
             predicted[n,1,:,:] += mean_y
+        
+        # get object index of perturbation target if any
+        visible_object_id_list = []
+        for obj_id, obj in input_data["objects"].items():
+            if obj["visible"]:
+                visible_object_id_list.append(obj_id)
+        obj_index = {_obj_id:index for index, _obj_id in enumerate(visible_object_id_list)}
 
         if perturbation is not None:
-        # get object index of perturbation target if any
-            obj_index = {_obj_id:index for index, _obj_id in enumerate(list(input_data["objects"].keys()))}
             for _obj_id in perturbation["ready_value"]:
                 input_data["objects"][str(_obj_id)]["perturbation"] = perturbation["ready_value"][_obj_id].detach().cpu().numpy()
                 input_data["objects"][str(_obj_id)]["observe_trace"] += input_data["objects"][str(_obj_id)]["perturbation"]
+            
             if "loss" in perturbation and perturbation["loss"] is not None:
                 observe_traces = {}
                 future_traces = {}
                 predict_traces = {}
 
                 for _obj_id in input_data["objects"]:
+                    if _obj_id not in visible_object_id_list:
+                        continue
                     observe_traces[_obj_id] = torch.from_numpy(input_data["objects"][str(_obj_id)]["observe_trace"]).cuda()
                     future_traces[_obj_id] = torch.from_numpy(input_data["objects"][str(_obj_id)]["future_trace"]).cuda()
                     predict_traces[_obj_id] = torch.transpose(predicted[0,:,:,obj_index[_obj_id]], 0, 1)
@@ -177,28 +185,9 @@ class GRIPDataLoader(DataLoader):
         else:
             loss = None
 
-        predicted = predicted.detach().cpu().numpy()
+        for obj_id, obj in input_data["objects"].items():
+            if obj_id not in visible_object_id_list:
+                continue
+            obj["predict_trace"] = torch.transpose(predicted[0,:,:,obj_index[obj_id]], 0, 1).cpu().detach().numpy()
 
-        now_pred = predicted # (N, C, T, V)=(N, 2, 6, 120)
-        now_mean_xy = mean_xy # (N, 2)
-        now_ori_data = ori_data # (N, C, T, V)=(N, 11, 6, 120)
-        now_mask = now_ori_data[:, -1, -1, :] # (N, V)
-
-        now_pred = np.transpose(now_pred, (0, 2, 3, 1)) # (N, T, V, 2)
-        now_ori_data = np.transpose(now_ori_data, (0, 2, 3, 1)) # (N, T, V, 11)
-
-        for n_pred, n_mean_xy, n_data, n_mask in zip(now_pred, now_mean_xy, now_ori_data, now_mask):
-            # (6, 120, 2), (2,), (6, 120, 11), (120, )
-            num_object = np.sum(n_mask).astype(int)
-            # only use the last time of original data for ids (frame_id, object_id, object_type)
-            # (6, 120, 11) -> (num_object, 3)
-            n_dat = n_data[-1, :num_object, :3].astype(int)
-            for time_ind, n_pre in enumerate(n_pred[:, :num_object]):
-                # (120, 2) -> (n, 2)
-                for info, pred in zip(n_dat, n_pre):
-                    if info[1] == 0:
-                        continue
-                    information = info.copy()
-                    information[0] = information[0] + time_ind
-                    input_data["objects"][str(information[1])]["predict_trace"][time_ind,:] = pred
         return input_data, loss

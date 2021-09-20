@@ -41,6 +41,14 @@ class ApolloscapeDataset(BaseDataset):
             "max": self.xy_max,
         }
 
+        self.bounds = {
+            "scalar_v": 10.539,
+            "linear_a": 4.957,
+            "rotate_a": 0.956,
+            "linear_aa": 8.418,
+            "rotate_aa": 1.577
+        }
+
     def format_data(self, data_dir, allow_incomplete_traces=True, allow_invisible_objects=True, require_one_complete=True, require_one_visible=True):
         files = os.listdir(data_dir)
         for filename in files:

@@ -32,7 +32,7 @@ class TrajectronInterface(Interface):
             self.obs_length, self.pred_length, maps=maps
         )
 
-        standardization = {
+        self.standardization = {
             'PEDESTRIAN': {
                 'position': {
                     'x': {'mean': 0, 'std': 1},
@@ -71,7 +71,7 @@ class TrajectronInterface(Interface):
             }
         }
 
-        env = Environment(node_type_list=['VEHICLE', 'PEDESTRIAN'], standardization=standardization)
+        env = Environment(node_type_list=['VEHICLE', 'PEDESTRIAN'], standardization=self.standardization)
         attention_radius = dict()
         attention_radius[(env.NodeType.PEDESTRIAN, env.NodeType.PEDESTRIAN)] = 10.0
         attention_radius[(env.NodeType.PEDESTRIAN, env.NodeType.VEHICLE)] = 20.0
@@ -89,6 +89,8 @@ class TrajectronInterface(Interface):
             self.model, self.hyperparams = self.load_model(pre_load_model)
         else:
             self.model, self.hyperparams = None, {}
+
+        self.test_vars = []
 
     def load_model(self, model_dir):
         filenames = os.listdir(model_dir)
@@ -151,6 +153,8 @@ class TrajectronInterface(Interface):
              map), nodes, timesteps_o = batch
 
             x = x_t.to(self.model.device)
+            x_st_t = x_st_t.to(self.model.device)
+
             if perturbation is not None:
                 target_index = -1
                 for i, n in enumerate(nodes):
@@ -158,10 +162,16 @@ class TrajectronInterface(Interface):
                         target_index = i
                         break
                 if target_index >= 0:
-                    x[target_index][:,:2] += perturbation["ready_value"][perturbation["obj_id"]]
+                    p = perturbation["ready_value"][perturbation["obj_id"]]
+                    dx = p
+                    dv = torch.cat((torch.reshape(p[1,:] - p[0,:], (1,2)), p[1:,:] - p[:-1,:]), 0) / self.time_step
+                    x[target_index][:,:2] += dx
+                    x[target_index][:,2:4] += dv / self.time_step
+                    x_st_t[target_index][:,:2] += p / 80
+                    x_st_t[target_index][:,2:4] += dv / self.time_step / 15
+
 
             y = y_t.to(self.model.device)
-            x_st_t = x_st_t.to(self.model.device)
             if robot_traj_st_t is not None:
                 robot_traj_st_t = robot_traj_st_t.to(self.model.device)
             if type(map) == torch.Tensor:

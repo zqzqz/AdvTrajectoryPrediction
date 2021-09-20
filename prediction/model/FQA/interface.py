@@ -42,6 +42,7 @@ class FQAInterface(Interface):
         conf_mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(conf_mod)
         config = conf_mod.config
+        config["net"]["saved_params_path"] = os.path.join(model_path, "best_valid_params.ptp")
 
         # set seed
         torch.manual_seed(self.seed)
@@ -66,12 +67,29 @@ class FQAInterface(Interface):
             self.model.eval()
             torch.set_grad_enabled(False)
 
-        sources, s_masks, sizes = self.dataloader.preprocess(input_data, self.xy_distribution)
+        sources, s_masks, sizes, obj_index_map = self.dataloader.preprocess(input_data, self.xy_distribution)
+        if perturbation is not None:
+            sources[obj_index_map[perturbation["obj_id"]]][:self.obs_length,:2] += (perturbation["ready_value"][perturbation["obj_id"]] / np.max(self.xy_distribution["std"]))
+        
         burn_in_steps = self.obs_length
         preds, _ = self.model(sources, masks=s_masks, sizes=sizes, burn_in_steps=burn_in_steps)
-        preds = torch.split(preds, sizes, dim=0)[0][:,self.obs_length-1:self.obs_length+self.pred_length-1]
-
-        print(sources[0], preds[0])
-
+        preds = torch.split(preds, sizes, dim=0)[0]
         output_data = self.dataloader.postprocess(input_data, preds, self.xy_distribution)
-        return output_data
+
+        if perturbation is not None:
+            observe_traces = {}
+            future_traces = {}
+            predict_traces = {}
+            for obj_id, obj_index in obj_index_map.items():
+                observe_traces[obj_id] = sources[obj_index][:self.obs_length,:2] * float(np.max(self.xy_distribution["std"])) + torch.from_numpy(self.xy_distribution["mean"]).cuda()
+                future_traces[obj_id] = torch.from_numpy(input_data["objects"][obj_id]["future_trace"]).cuda()
+                predict_traces[obj_id] = preds[obj_index][self.obs_length-1:self.obs_length+self.pred_length-1,:] * float(np.max(self.xy_distribution["std"])) + torch.from_numpy(self.xy_distribution["mean"]).cuda()
+            loss = perturbation["loss"](observe_traces, future_traces, predict_traces, 
+                                        perturbation["obj_id"], perturbation["ready_value"][perturbation["obj_id"]], **perturbation["attack_opts"])
+        else:
+            loss = None
+
+        if loss is None:
+            return output_data
+        else:
+            return output_data, loss

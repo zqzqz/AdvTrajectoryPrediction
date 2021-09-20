@@ -99,6 +99,8 @@ def draw_multi_frame(output_data_dict, filename=None, future=True, predict=True)
                 predict_trace = get_trace(obj, "predict")
                 if predict_trace is None:
                     use_predict = False
+                if obj["type"] > 2:
+                    use_predict = False
 
             # update boundaries
             trace_all = observe_trace
@@ -174,7 +176,7 @@ def draw_multi_frame_attack(input_data, obj_id, perturbation, output_data_list, 
         perturbed_trace = input_data["objects"][str(obj_id)]["observe_trace"][:,:]
 
     for k, output_data in output_data_list.items():
-        last_point = perturbed_trace[0,:]
+        last_point = perturbed_trace[int(k)+output_data["observe_length"]-1,:]
         predict_trace = np.concatenate((last_point.reshape(1,2), output_data["objects"][str(obj_id)]["predict_trace"]), axis=0)
         ax.plot(predict_trace[:,0], predict_trace[:,1], "ro:")
 

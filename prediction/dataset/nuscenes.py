@@ -46,6 +46,14 @@ class NuScenesDataset(BaseDataset):
             "max": self.xy_max,
         }
 
+        self.bounds = {
+            "scalar_v": 8.599,
+            "linear_a": 1.275,
+            "rotate_a": 0.468,
+            "linear_aa": 1.957,
+            "rotate_aa": 0.535
+        }
+
     def get_scene_map(self, map_name_path):
         scene_map = {}
         with open(map_name_path, 'r') as f:

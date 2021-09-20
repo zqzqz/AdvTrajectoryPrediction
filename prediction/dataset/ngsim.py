@@ -27,7 +27,7 @@ class NGSIMDataset(ApolloscapeDataset):
 
         self.default_time_step = 0.2
         self.skip_step = int(self.time_step / self.default_time_step)
-        self.feature_dimension = 3
+        self.feature_dimension = 5
 
         self.xy_mean = np.array([10.74227619, 289.12354171])
         self.xy_std = np.array([5.97806709, 161.91972043])
@@ -39,4 +39,12 @@ class NGSIMDataset(ApolloscapeDataset):
             "std": self.xy_std,
             "min": self.xy_min,
             "max": self.xy_max,
+        }
+
+        self.bounds = {
+            "scalar_v": 4.166,
+            "linear_a": 0.291,
+            "rotate_a": 0.124,
+            "linear_aa": 0.391,
+            "rotate_aa": 0.185
         }
