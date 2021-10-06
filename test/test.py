@@ -1,6 +1,7 @@
 import os, sys
 import random
 import logging
+import copy
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 from prediction.dataset.apolloscape import ApolloscapeDataset
 from prediction.dataset.ngsim import NGSIMDataset
@@ -105,7 +106,7 @@ models = {
 }
 
 
-def load_model(model_name, dataset_name):
+def load_model(model_name, dataset_name, augment=False):
     if model_name == "grip":
         from prediction.model.GRIP.interface import GRIPInterface
         api_class = GRIPInterface
@@ -116,10 +117,14 @@ def load_model(model_name, dataset_name):
         from prediction.model.Trajectron.interface import TrajectronInterface
         api_class = TrajectronInterface
 
+    model_config = copy.deepcopy(models)
+    if augment:
+        model_config[model_name][dataset_name]["pre_load_model"] = model_config[model_name][dataset_name]["pre_load_model"].replace("/model", "/model_aug")
+
     return api_class(
         datasets[dataset_name]["obs_length"],
         datasets[dataset_name]["pred_length"],
-        **models[model_name][dataset_name]
+        **model_config[model_name][dataset_name]
     )
 
 #####################################################################################################################################################################
@@ -195,7 +200,7 @@ def sample_fix():
         f.write('\n'.join(["{} {}".format(scene[0], scene[1]) for scene in new_scenes]))
 
 
-def attack_multi_frame():
+def attack(mode="single_frame"):
     assert(len(sys.argv) == 4)
     model_name = sys.argv[1]
     dataset_name = sys.argv[2]
@@ -203,17 +208,17 @@ def attack_multi_frame():
     api = load_model(model_name, dataset_name)
     DATASET_DIR = "data/dataset/{}".format(dataset_name)
     samples = datasets[dataset_name]["samples"]
-    attack_length = datasets[dataset_name]["attack_length"]
+    attack_length = datasets[dataset_name]["attack_length"] if mode.endswith("multi_frame") else 1
     physical_bounds = datasets[dataset_name]["instance"].bounds
 
     attacker = GradientAttacker(api.obs_length, api.pred_length, attack_length, api, seed_num=1, iter_num=100, physical_bounds=physical_bounds)
 
-    adv_attack(attacker, "data/dataset/{}/multi_frame/raw".format(dataset_name), 
-                        "data/{}_{}/multi_frame/attack".format(model_name, dataset_name),
-                        "data/{}_{}/multi_frame/attack_visualize".format(model_name, dataset_name), overwrite=overwrite, samples=samples)
+    adv_attack(attacker, "data/dataset/{}/{}/raw".format(dataset_name, mode), 
+                        "data/{}_{}/{}/attack".format(model_name, dataset_name, mode),
+                        "data/{}_{}/{}/attack_visualize".format(model_name, dataset_name, mode), overwrite=overwrite, samples=samples)
 
 
-def attack_single_frame():
+def normal(mode="single_frame"):
     assert(len(sys.argv) == 4)
     model_name = sys.argv[1]
     dataset_name = sys.argv[2]
@@ -221,29 +226,12 @@ def attack_single_frame():
     api = load_model(model_name, dataset_name)
     DATASET_DIR = "data/dataset/{}".format(dataset_name)
     samples = datasets[dataset_name]["samples"]
-    attack_length = 1
-    physical_bounds = datasets[dataset_name]["instance"].bounds
-
-    attacker = GradientAttacker(api.obs_length, api.pred_length, attack_length, api, seed_num=1, iter_num=100, physical_bounds=physical_bounds)
-
-    adv_attack(attacker, "data/dataset/{}/multi_frame/raw".format(dataset_name), 
-                        "data/{}_{}/single_frame/attack".format(model_name, dataset_name),
-                        "data/{}_{}/single_frame/attack_visualize".format(model_name, dataset_name), overwrite=overwrite, samples=samples)
-
-
-def normal_multi_frame():
-    assert(len(sys.argv) == 4)
-    model_name = sys.argv[1]
-    dataset_name = sys.argv[2]
-    overwrite = int(sys.argv[3])
-    api = load_model(model_name, dataset_name)
-    DATASET_DIR = "data/dataset/{}".format(dataset_name)
-    samples = datasets[dataset_name]["samples"]
+    attack_length = datasets[dataset_name]["attack_length"] if mode.endswith("multi_frame") else 1
     attack_length = datasets[dataset_name]["attack_length"]
 
-    normal_test(api, "data/dataset/{}/multi_frame/raw".format(dataset_name), 
-                        "data/{}_{}/multi_frame/normal".format(model_name, dataset_name),
-                        "data/{}_{}/multi_frame/normal_visualize".format(model_name, dataset_name), 
+    normal_test(api, "data/dataset/{}/{}/raw".format(dataset_name, mode), 
+                        "data/{}_{}/{}/normal".format(model_name, dataset_name, mode),
+                        "data/{}_{}/{}/normal_visualize".format(model_name, dataset_name, mode), 
                         overwrite=overwrite, samples=samples, attack_length=attack_length)
 
 
