@@ -1,5 +1,5 @@
 from prediction.dataset import BaseDataset
-
+import torch
 
 class Interface():
     def __init__(self, obs_length, pred_length):

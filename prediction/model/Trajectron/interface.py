@@ -19,12 +19,13 @@ from .dataloader import TrajectronDataLoader
 from prediction.model.base.interface import Interface
 from environment import Environment, Scene, Node, GeometricMap, derivative_of
 from model.dataset import get_timesteps_data, restore
+from prediction.model.utils import smooth_tensor
 
 logger = logging.getLogger(__name__)
 
 
 class TrajectronInterface(Interface):
-    def __init__(self, obs_length, pred_length, time_step=0.5, pre_load_model=None, maps=None):
+    def __init__(self, obs_length, pred_length, time_step=0.5, pre_load_model=None, maps=None, smooth=False):
         super().__init__(obs_length, pred_length)
         self.time_step = time_step
 
@@ -91,6 +92,8 @@ class TrajectronInterface(Interface):
             self.model, self.hyperparams = None, {}
 
         self.test_vars = []
+
+        self.smooth = smooth
 
     def load_model(self, model_dir):
         filenames = os.listdir(model_dir)
@@ -166,9 +169,16 @@ class TrajectronInterface(Interface):
                     dx = p
                     dv = torch.cat((torch.reshape(p[1,:] - p[0,:], (1,2)), p[1:,:] - p[:-1,:]), 0) / self.time_step
                     x[target_index][:,:2] += dx
-                    x[target_index][:,2:4] += dv / self.time_step
-                    x_st_t[target_index][:,:2] += p / 80
-                    x_st_t[target_index][:,2:4] += dv / self.time_step / 15
+                    x[target_index][:,2:4] += dv
+                    x_st_t[target_index][:,:2] += dx / 80
+                    x_st_t[target_index][:,2:4] += dv / 15
+            
+            if self.smooth:
+                for i, n in enumerate(nodes):
+                    if torch.isnan(x[i]).sum() > 0:
+                        continue
+                    x[i] = smooth_tensor(x[i])
+                    x_st_t[i] = smooth_tensor(x_st_t[i])
 
 
             y = y_t.to(self.model.device)

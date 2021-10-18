@@ -15,12 +15,13 @@ import importlib.util
 
 from .dataloader import FQADataLoader
 from prediction.model.base.interface import Interface
+from prediction.model.utils import smooth_tensor
 
 logger = logging.getLogger(__name__)
 
 
 class FQAInterface(Interface):
-    def __init__(self, obs_length, pred_length, pre_load_model=None, seed=1, xy_distribution={}):
+    def __init__(self, obs_length, pred_length, pre_load_model=None, seed=1, xy_distribution={}, smooth=False):
         super().__init__(obs_length, pred_length)
 
         self.dataloader = FQADataLoader(
@@ -35,6 +36,8 @@ class FQAInterface(Interface):
             self.model = self.load_model(pre_load_model)
         else:
             self.model = None
+
+        self.smooth = smooth
 
     def load_model(self, model_path):
         # load config
@@ -67,14 +70,25 @@ class FQAInterface(Interface):
             self.model.eval()
             torch.set_grad_enabled(False)
 
-        sources, s_masks, sizes, obj_index_map = self.dataloader.preprocess(input_data, self.xy_distribution)
+        if perturbation is not None:
+            target_obj_id = str(perturbation["obj_id"])
+        else:
+            target_obj_id = None
+        sources, s_masks, sizes, obj_index_map = self.dataloader.preprocess(input_data, self.xy_distribution, target_obj_id=target_obj_id)
         if perturbation is not None:
             sources[obj_index_map[perturbation["obj_id"]]][:self.obs_length,:2] += (perturbation["ready_value"][perturbation["obj_id"]] / np.max(self.xy_distribution["std"]))
+        if self.smooth:
+            for obj_id, index in obj_index_map.items():
+                sources[index][:self.obs_length] = smooth_tensor(sources[index][:self.obs_length])
         
         burn_in_steps = self.obs_length
         preds, _ = self.model(sources, masks=s_masks, sizes=sizes, burn_in_steps=burn_in_steps)
         preds = torch.split(preds, sizes, dim=0)[0]
-        output_data = self.dataloader.postprocess(input_data, preds, self.xy_distribution)
+        # for obj_id, index in obj_index_map.items():
+        #     print(obj_id)
+        #     print(sources[index][:,:2])
+        #     print(preds[index][:,:2])
+        output_data = self.dataloader.postprocess(input_data, preds, self.xy_distribution, obj_index_map)
 
         if perturbation is not None:
             observe_traces = {}

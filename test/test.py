@@ -1,12 +1,17 @@
+import setGPU
 import os, sys
 import random
 import logging
 import copy
+import torch
+torch.backends.cudnn.enabled = False
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 from prediction.dataset.apolloscape import ApolloscapeDataset
 from prediction.dataset.ngsim import NGSIMDataset
 from prediction.dataset.nuscenes import NuScenesDataset
 from prediction.dataset.generate import data_offline_generator
+from prediction.attack.gradient import GradientAttacker
+from prediction.attack.pso import PSOAttacker
 from test_utils import *
 
 
@@ -51,19 +56,19 @@ for dataset_name in datasets:
 models = {
     "grip": {
         "apolloscape": {
-            "pre_load_model": "data/grip_apolloscape/model/best_model.pt",
+            "pre_load_model": "data/grip_apolloscape/model/original/best_model.pt",
             "num_node": 120, 
             "in_channels": 4,
             "rescale": [1,1]
         },
         "ngsim": {
-            "pre_load_model": "data/grip_ngsim/model/best_model.pt",
+            "pre_load_model": "data/grip_ngsim/model/original/best_model.pt",
             "num_node": 260, 
             "in_channels": 4,
             "rescale": [669.691/2, 669.691/2]
         },
         "nuscenes": {
-            "pre_load_model": "data/grip_nuscenes/model/best_model.pt", 
+            "pre_load_model": "data/grip_nuscenes/model/original/best_model.pt", 
             "num_node": 160, 
             "in_channels": 4,
             "rescale": [1,1]
@@ -71,42 +76,42 @@ models = {
     },
     "fqa": {
         "apolloscape": {
-            "pre_load_model": "data/fqa_apolloscape/model",
+            "pre_load_model": "data/fqa_apolloscape/model/original",
             "xy_distribution": datasets["apolloscape"]["instance"].xy_distribution
         },
         "ngsim": {
-            "pre_load_model": "data/fqa_ngsim/model",
+            "pre_load_model": "data/fqa_ngsim/model/original",
             "xy_distribution": datasets["ngsim"]["instance"].xy_distribution
         },
         "nuscenes": {
-            "pre_load_model": "data/fqa_nuscenes/model",
+            "pre_load_model": "data/fqa_nuscenes/model/original",
             "xy_distribution": datasets["nuscenes"]["instance"].xy_distribution
         }
     },
     "trajectron": {
         "apolloscape": {
-            "pre_load_model": "data/trajectron_apolloscape/model", 
+            "pre_load_model": "data/trajectron_apolloscape/model/original", 
             "maps": None
         },
         "ngsim": {
-            "pre_load_model": "data/trajectron_ngsim/model", 
+            "pre_load_model": "data/trajectron_ngsim/model/original", 
             "maps": None
         },
         "nuscenes": {
-            "pre_load_model": "data/trajectron_nuscenes/model", 
+            "pre_load_model": "data/trajectron_nuscenes/model/original", 
             "maps": None
         }
     },
     "trajectron_map": {
         "nuscenes": {
-            "pre_load_model": "data/trajectron_map_nuscenes/model", 
+            "pre_load_model": "data/trajectron_map_nuscenes/model/original", 
             "maps": datasets["nuscenes"]["instance"].maps
         }
     }
 }
 
 
-def load_model(model_name, dataset_name, augment=False):
+def load_model(model_name, dataset_name, augment=False, smooth=False, models=models):
     if model_name == "grip":
         from prediction.model.GRIP.interface import GRIPInterface
         api_class = GRIPInterface
@@ -118,8 +123,14 @@ def load_model(model_name, dataset_name, augment=False):
         api_class = TrajectronInterface
 
     model_config = copy.deepcopy(models)
-    if augment:
-        model_config[model_name][dataset_name]["pre_load_model"] = model_config[model_name][dataset_name]["pre_load_model"].replace("/model", "/model_aug")
+    if augment and not smooth:
+        model_config[model_name][dataset_name]["pre_load_model"] = model_config[model_name][dataset_name]["pre_load_model"].replace("/original", "/augment")
+    if smooth and not augment:
+        model_config[model_name][dataset_name]["pre_load_model"] = model_config[model_name][dataset_name]["pre_load_model"].replace("/original", "/smooth")
+        model_config[model_name][dataset_name]["smooth"] = True
+    if smooth and augment:
+        model_config[model_name][dataset_name]["pre_load_model"] = model_config[model_name][dataset_name]["pre_load_model"].replace("/original", "/augment_smooth")
+        model_config[model_name][dataset_name]["smooth"] = True
 
     return api_class(
         datasets[dataset_name]["obs_length"],
@@ -128,6 +139,18 @@ def load_model(model_name, dataset_name, augment=False):
     )
 
 #####################################################################################################################################################################
+
+def get_tag(augment=False, smooth=False, blackbox=False):
+    if augment and smooth:
+        return "augment_smooth"
+    elif augment:
+        return "augment"
+    elif smooth:
+        return "smooth"
+    elif blackbox:
+        return "blackbox"
+    else:
+        return "original"
 
 
 def sample():
@@ -157,129 +180,114 @@ def sample():
         f.write('\n'.join(["{} {}".format(scene[0], scene[1]) for scene in cases]))
 
 
-def sample_fix():
-    dataset_name = sys.argv[1]
-    DATASET_DIR = "data/dataset/{}/multi_frame/raw".format(dataset_name)
-    SAMPLE_PATH = "data/dataset/{}/multi_frame/samples.txt".format(dataset_name)
-    interval_bound = 0.02 if dataset_name == "ngsim" else 0.05
-
-    with open(SAMPLE_PATH, 'r') as f:
-        lines = f.readlines()
-    scenes = [line[:-1].split(' ') for line in lines]
-    scenes = [(int(scene[0]), int(scene[1])) for scene in scenes]
-    new_scenes = []
-
-    for case_id, obj_id in scenes:
-        input_data = load_data(os.path.join(DATASET_DIR, "{}.json".format(case_id)))
-        obj = input_data["objects"][str(obj_id)]
-        if np.sum(np.sum((obj["observe_trace"][1:,:] - obj["observe_trace"][:-1,:]) ** 2, axis=1) < interval_bound) > 0:
-            logging.error("wrong case {}".format((case_id, obj_id)))
-            replace_candidates = []
-            new_case_id = int(case_id)
-            while True:
-                _input_data = load_data(os.path.join(DATASET_DIR, "{}.json".format(new_case_id)))
-                for _obj_id, _obj in _input_data["objects"].items():
-                    if _obj["type"] not in [1, 2]:
-                        continue
-                    if not _obj["complete"]:
-                        continue
-                    if np.sum(np.sum((_obj["observe_trace"][1:,:] - _obj["observe_trace"][:-1,:]) ** 2, axis=1) < interval_bound) > 0:
-                        continue
-                    replace_candidates.append((new_case_id, int(_obj_id)))
-                if len(replace_candidates) > 0:
-                    break
-                new_case_id += 1
-            new_scene = random.choice(replace_candidates)
-            logging.error("replace case {}".format(new_scene))
-        else:
-            new_scene = (case_id, obj_id)
-        new_scenes.append(new_scene)
-
-    print(new_scenes)
-    with open(SAMPLE_PATH, 'w') as f:
-        f.write('\n'.join(["{} {}".format(scene[0], scene[1]) for scene in new_scenes]))
-
-
-def attack(mode="single_frame"):
-    assert(len(sys.argv) == 4)
+def attack(mode="single_frame", augment=False, smooth=False, blackbox=False):
     model_name = sys.argv[1]
     dataset_name = sys.argv[2]
     overwrite = int(sys.argv[3])
-    api = load_model(model_name, dataset_name)
+    api = load_model(model_name, dataset_name, augment=augment, smooth=smooth)
     DATASET_DIR = "data/dataset/{}".format(dataset_name)
     samples = datasets[dataset_name]["samples"]
     attack_length = datasets[dataset_name]["attack_length"] if mode.endswith("multi_frame") else 1
     physical_bounds = datasets[dataset_name]["instance"].bounds
+    tag = get_tag(augment=augment, smooth=smooth, blackbox=blackbox)
 
-    attacker = GradientAttacker(api.obs_length, api.pred_length, attack_length, api, seed_num=1, iter_num=100, physical_bounds=physical_bounds)
+    if not blackbox:
+        attacker = GradientAttacker(api.obs_length, api.pred_length, attack_length, api, seed_num=1, iter_num=100, physical_bounds=physical_bounds)
+    else:
+        attacker = PSOAttacker(api.obs_length, api.pred_length, attack_length, api, physical_bounds=physical_bounds)
 
-    adv_attack(attacker, "data/dataset/{}/{}/raw".format(dataset_name, mode), 
-                        "data/{}_{}/{}/attack".format(model_name, dataset_name, mode),
-                        "data/{}_{}/{}/attack_visualize".format(model_name, dataset_name, mode), overwrite=overwrite, samples=samples)
+    datadir = "data/{}_{}/{}/attack/{}".format(model_name, dataset_name, mode, tag)
+    adv_attack(attacker, "data/dataset/{}/multi_frame/raw".format(dataset_name, mode), 
+                        "{}/raw".format(datadir),
+                        "{}/visualize".format(datadir), 
+                        overwrite=overwrite, samples=samples)
 
 
-def normal(mode="single_frame"):
-    assert(len(sys.argv) == 4)
+def normal(mode="single_frame", augment=False, smooth=False):
     model_name = sys.argv[1]
     dataset_name = sys.argv[2]
     overwrite = int(sys.argv[3])
-    api = load_model(model_name, dataset_name)
+    api = load_model(model_name, dataset_name, augment=augment, smooth=smooth)
     DATASET_DIR = "data/dataset/{}".format(dataset_name)
     samples = datasets[dataset_name]["samples"]
     attack_length = datasets[dataset_name]["attack_length"] if mode.endswith("multi_frame") else 1
-    attack_length = datasets[dataset_name]["attack_length"]
+    tag = get_tag(augment=augment, smooth=smooth, blackbox=blackbox)
 
-    normal_test(api, "data/dataset/{}/{}/raw".format(dataset_name, mode), 
-                        "data/{}_{}/{}/normal".format(model_name, dataset_name, mode),
-                        "data/{}_{}/{}/normal_visualize".format(model_name, dataset_name, mode), 
+    datadir = "data/{}_{}/{}/normal/{}".format(model_name, dataset_name, mode, tag)
+    print(datadir)
+    normal_test(api, "data/dataset/{}/multi_frame/raw".format(dataset_name, mode), 
+                        "{}/raw".format(datadir),
+                        "{}/visualize".format(datadir), 
                         overwrite=overwrite, samples=samples, attack_length=attack_length)
 
 
-def normal_single_frame():
-    assert(len(sys.argv) == 4)
-    model_name = sys.argv[1]
-    dataset_name = sys.argv[2]
-    overwrite = int(sys.argv[3])
-    api = load_model(model_name, dataset_name)
-    DATASET_DIR = "data/dataset/{}".format(dataset_name)
-    samples = datasets[dataset_name]["samples"]
-    attack_length = 1
+def evaluate(mode="single_frame", augment=False, smooth=False, blackbox=False):
+    if len(sys.argv) >= 3:
+        model_list = [sys.argv[1]]
+        dataset_list = [sys.argv[2]]
+    else:
+        model_list = list(models.keys())
+        dataset_list = list(datasets.keys())
 
-    normal_test(api, "data/dataset/{}/multi_frame/raw".format(dataset_name), 
-                        "data/{}_{}/single_frame/normal".format(model_name, dataset_name),
-                        "data/{}_{}/single_frame/normal_visualize".format(model_name, dataset_name), 
-                        overwrite=overwrite, samples=samples, attack_length=attack_length)
+    tag = get_tag(augment=augment, smooth=smooth, blackbox=blackbox)
+
+    for model_name in model_list:
+        for dataset_name in dataset_list:
+            if model_name == "trajectron_map" and dataset_name in ["apolloscape", "ngsim"]:
+                continue
+            print(model_name, dataset_name)
+            attack_length = datasets[dataset_name]["attack_length"] if mode.endswith("multi_frame") else 1
+            samples = datasets[dataset_name]["samples"]
+            if mode.startswith("normal"):
+                datadir = "data/{}_{}/{}/normal/{}".format(model_name, dataset_name, mode[7:], tag)
+                evaluate_loss("{}/raw".format(datadir), samples=samples, output_dir="{}/evaluate".format(datadir), normal_data=True, attack_length=attack_length)
+            elif mode.startswith("transfer"):
+                for other_model_name in models:
+                    if other_model_name == model_name:
+                        continue
+                    datadir = "data/{}_{}/{}/transfer/{}".format(model_name, dataset_name, mode[9:], other_model_name)
+                    evaluate_loss("{}/raw".format(datadir), samples=samples, output_dir="{}/evaluate".format(datadir), normal_data=False, attack_length=attack_length)
+            else:
+                datadir = "data/{}_{}/{}/attack/{}".format(model_name, dataset_name, mode, tag)
+                evaluate_loss("{}/raw".format(datadir), samples=samples, output_dir="{}/evaluate".format(datadir), normal_data=False, attack_length=attack_length)
 
 
 def attack_one():
     model_name = "grip"
     dataset_name = "apolloscape"
-    case_id = 8
-    obj_id = 24
+    case_id = 312
+    obj_id = 319
     attack_goal = "ade"
 
-    api = load_model(model_name, dataset_name)
+    api = load_model(model_name, dataset_name, smooth=True, augment=False)
     DATASET_DIR = "data/dataset/{}".format(dataset_name)
-    attack_length = datasets[dataset_name]["attack_length"]
+    # attack_length = datasets[dataset_name]["attack_length"]
+    attack_length = 1
     physical_bounds = datasets[dataset_name]["instance"].bounds
-    attacker = GradientAttacker(api.obs_length, api.pred_length, attack_length, api, seed_num=4, iter_num=100, physical_bounds=physical_bounds)
-    result_path = "{}-{}-{}-{}-{}.json".format(model_name, dataset_name, case_id, obj_id, attack_goal)
-    figure_path = "{}-{}-{}-{}-{}.png".format(model_name, dataset_name, case_id, obj_id, attack_goal)
+
+    print("normal")
+    result_path = "{}-{}-{}-{}-smooth.json".format(model_name, dataset_name, case_id, obj_id)
+    figure_path = "{}-{}-{}-{}-smooth.png".format(model_name, dataset_name, case_id, obj_id)
+    test_sample(api, DATASET_DIR, case_id, obj_id, attack_length, result_path, figure_path)
+
+    print("attack")
+    attacker = GradientAttacker(api.obs_length, api.pred_length, attack_length, api, seed_num=1, iter_num=100, physical_bounds=physical_bounds)
+    # attacker = PSOAttacker(api.obs_length, api.pred_length, attack_length, api, physical_bounds=physical_bounds)
+    
+    result_path = "{}-{}-{}-{}-{}-smooth.json".format(model_name, dataset_name, case_id, obj_id, attack_goal)
+    figure_path = "{}-{}-{}-{}-{}-smooth.png".format(model_name, dataset_name, case_id, obj_id, attack_goal)
     attack_sample(attacker, DATASET_DIR, case_id, obj_id, attack_goal, result_path, figure_path)
 
 
-def evaluate(mode="single_frame"):
-    for model_name in models:
-        for dataset_name in datasets:
-            if model_name == "trajectron_map" and dataset_name in ["apolloscape", "ngsim"]:
-                continue
-            print(model_name, dataset_name)
-            samples = datasets[dataset_name]["samples"]
-            if mode.startswith("normal"):
-                evaluate_loss("data/{}_{}/{}/normal".format(model_name, dataset_name, mode[7:]), samples=samples, output_dir="data/{}_{}/{}/normal_evaluate".format(model_name, dataset_name, mode[7:]), normal_data=True)
-            else:
-                evaluate_loss("data/{}_{}/{}/attack".format(model_name, dataset_name, mode), samples=samples, output_dir="data/{}_{}/{}/attack_evaluate".format(model_name, dataset_name, mode))
-
-
 if __name__ == "__main__":
-    attack_single_frame()
+    mode = "multi_frame"
+    augment = True
+    smooth = True
+    blackbox = False
+    normal(mode=mode, augment=augment, smooth=smooth)
+    attack(mode=mode, augment=augment, smooth=smooth, blackbox=blackbox)
+    evaluate(mode="normal_"+mode, augment=augment, smooth=smooth)
+    evaluate(mode=mode, augment=augment, smooth=smooth)
+
+    # attack_one()
+    # evaluate("transfer_multi_frame")

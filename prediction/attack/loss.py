@@ -1,7 +1,7 @@
 import torch
 
 def ade(predict_trace, future_trace):
-    return torch.sum(torch.square(predict_trace - future_trace)) / predict_trace.shape[0]
+    return (torch.sum(torch.square(predict_trace - future_trace)) / predict_trace.shape[0])
 
 
 def fde(predict_trace, future_trace):

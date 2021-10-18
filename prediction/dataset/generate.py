@@ -7,10 +7,15 @@ from .utils import json_to_data
 
 
 def add_flags(data):
-    for _, obj in data["objects"].items():
+    delete_obj_ids = []
+    for obj_id, obj in data["objects"].items():
         obj["observe_mask"] = (obj["observe_trace"][:,0] > 0).astype(np.int64)
         obj["future_mask"] = (obj["future_trace"][:,0] > 0).astype(np.int64)
         
+        if np.sum(obj["observe_mask"]) == 0:
+            delete_obj_ids.append(obj_id)
+            continue
+
         if np.min(np.concatenate((obj["observe_mask"], obj["future_mask"]), axis=0)) <= 0:
             obj["complete"] = False
         else:
@@ -28,6 +33,9 @@ def add_flags(data):
             v = np.sum(v ** 2, axis=1)
             if np.sum(v > 0) < v.shape[0]:
                 obj["static"] = True
+
+    for obj_id in delete_obj_ids:
+        del data["objects"][obj_id]
     
     return data
 

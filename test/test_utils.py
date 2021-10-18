@@ -154,14 +154,8 @@ def adv_attack_core(attacker, input_data, obj_id, attack_goal, result_path, figu
 
 
 def normal_test(api, data_dir, result_dir, figure_dir, samples=[], attack_length=1, overwrite=False):
-    # !!!
-    overwrite = True
     ret = create_dir(result_dir, overwrite=overwrite)
-    # if not ret:
-    #     return False
     ret = create_dir(figure_dir, overwrite=overwrite)
-    # if not ret:
-    #     return False
 
     for name, obj_id in samples:
         logging.warn("Log {} {}".format(name, obj_id))
@@ -181,11 +175,7 @@ def normal_test(api, data_dir, result_dir, figure_dir, samples=[], attack_length
 
 def adv_attack(attacker, data_dir, result_dir, figure_dir, samples=[], overwrite=False):
     ret = create_dir(result_dir, overwrite=overwrite)
-    # if not ret:
-    #     return False
     ret = create_dir(figure_dir, overwrite=overwrite)
-    # if not ret:
-    #     return False
 
     attack_goals = ["ade", "fde", "left", "right", "front", "rear"]
 
@@ -207,9 +197,9 @@ def adv_attack(attacker, data_dir, result_dir, figure_dir, samples=[], overwrite
                 logging.error(traceback.format_exc())
 
 
-def test_sample(api, DATASET_DIR, case_id, attack_length, result_path, figure_path):
+def test_sample(api, DATASET_DIR, case_id, obj_id, attack_length, result_path, figure_path):
     input_data = load_data(os.path.join(DATASET_DIR, "multi_frame", "raw", "{}.json".format(case_id)))
-    test_core(api, input_data, attack_length, result_path, figure_path)
+    test_core(api, input_data, obj_id, attack_length, result_path, figure_path)
 
 
 def attack_sample(attacker, DATASET_DIR, case_id, obj_id, attack_goal, result_path, figure_path):
@@ -217,7 +207,7 @@ def attack_sample(attacker, DATASET_DIR, case_id, obj_id, attack_goal, result_pa
     adv_attack_core(attacker, input_data, obj_id, attack_goal, result_path, figure_path)
 
 
-def evaluate_loss(result_dir, samples=[], output_dir=None, normal_data=False):
+def evaluate_loss(result_dir, samples=[], output_dir=None, normal_data=False, attack_length=1):
     _ = create_dir(output_dir, overwrite=False)
     loss_data = {}
     attack_goals = ["ade", "fde", "left", "right", "front", "rear"]
@@ -230,7 +220,7 @@ def evaluate_loss(result_dir, samples=[], output_dir=None, normal_data=False):
                 result_file = os.path.join(result_dir, "{}-{}-{}.json".format(name, obj_id, attack_goal))
                 try:
                     data = load_data(result_file)
-                    loss_data[attack_goal][(name, obj_id)] = float(data["loss"])
+                    loss_data[attack_goal][(name, obj_id)] = float(data["loss"]) / attack_length
                 except Exception as e:
                     # logging.error(e)
                     pass
@@ -239,10 +229,14 @@ def evaluate_loss(result_dir, samples=[], output_dir=None, normal_data=False):
             try:
                 data = load_data(result_file)
                 for attack_goal in attack_goals:
-                    loss_data[attack_goal][(name, obj_id)] = float(data["loss"][attack_goal])
+                    loss_data[attack_goal][(name, obj_id)] = float(data["loss"][attack_goal]) / attack_length
             except Exception as e:
                 # logging.error(e)
                 pass
+
+    if len(loss_data["ade"]) == 0:
+        print("Empty!")
+        return
 
     print("Finished {}/{}".format(len(loss_data["ade"]), len(samples)))
 
