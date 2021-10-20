@@ -48,7 +48,10 @@ def get_deviation(perturbation_array):
 
 
 def hard_constraint(observe_trace_array, perturbation_tensor, hard_bound, physical_bounds):
-    perturbation_array = perturbation_tensor.cpu().detach().numpy()
+    if not isinstance(perturbation_tensor, np.ndarray):
+        perturbation_array = perturbation_tensor.cpu().detach().numpy()
+    else:
+        perturbation_array = perturbation_tensor
     
     step = 0.01
     theta = 1 + step

@@ -27,3 +27,52 @@ def smooth_array(feature_array):
     new_array[1:feature_array.shape[0]-1] += (feature_array[:-2] + feature_array[2:])
     new_array[1:feature_array.shape[0]-1] /= 3
     return new_array
+
+
+def get_unit_vector(vectors):
+    scale = np.sum(vectors ** 2, axis=1) ** 0.5 + 0.001
+    result = np.zeros(vectors.shape)
+    result[:,0] = vectors[:,0] / scale
+    result[:,1] = vectors[:,1] / scale
+    return result
+
+
+def get_acceleration(trace_array):
+    v = trace_array[1:,:] - trace_array[:-1,:]
+    a = v[1:,:] - v[:-1,:]
+
+    direction = get_unit_vector(v)
+    direction_r = np.concatenate((direction[:,1].reshape(direction.shape[0],1), 
+                                -direction[:,0].reshape(direction.shape[0],1)), axis=1)
+
+    long_a = np.sum(direction[:-1,:] * a, axis=1)
+    lat_a = np.sum(direction_r[:-1,:] * a, axis=1)
+
+    return long_a, lat_a
+
+
+def CUSUM(trace_array, opts):
+    long_a, lat_a = get_acceleration(trace_array)
+    long_opts, lat_opts = opts["long"], opts["lat"]
+    
+    result = False
+    for opts, a in [(long_opts, long_a), (lat_opts, lat_a)]:
+        s = 0
+        last_m = 0
+        for m in a.tolist():
+            if m * last_m < 0:
+                s = max(0, s + abs(m-last_m)/opts["scale"] - opts["d"])
+            last_m = m
+        # print(s)
+        if s > opts["t"]:
+            result = True
+    
+    return result
+
+
+def detect_array(trace_array, opts):
+    return CUSUM(trace_array, opts)
+
+
+def detect_tensor(trace_tensor, opts):
+    return CUSUM(trace_tensor.cpu().detach().numpy(), opts)

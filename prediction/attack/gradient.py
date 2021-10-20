@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class GradientAttacker(BaseAttacker):
-    def __init__(self, obs_length, pred_length, attack_duration, predictor, iter_num=100, learn_rate=0.1, learn_rate_decay=20, bound=1, physical_bounds={}, seed_num=10):
+    def __init__(self, obs_length, pred_length, attack_duration, predictor, iter_num=100, learn_rate=0.1, learn_rate_decay=20, bound=1, physical_bounds={}, smooth=0, seed_num=10):
         super().__init__(obs_length, pred_length, attack_duration, predictor)
         self.iter_num = iter_num
         self.learn_rate = learn_rate

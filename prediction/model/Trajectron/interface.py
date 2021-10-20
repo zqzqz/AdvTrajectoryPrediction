@@ -19,13 +19,13 @@ from .dataloader import TrajectronDataLoader
 from prediction.model.base.interface import Interface
 from environment import Environment, Scene, Node, GeometricMap, derivative_of
 from model.dataset import get_timesteps_data, restore
-from prediction.model.utils import smooth_tensor
+from prediction.model.utils import detect_tensor, smooth_tensor
 
 logger = logging.getLogger(__name__)
 
 
 class TrajectronInterface(Interface):
-    def __init__(self, obs_length, pred_length, time_step=0.5, pre_load_model=None, maps=None, smooth=False):
+    def __init__(self, obs_length, pred_length, time_step=0.5, pre_load_model=None, maps=None, smooth=0, dataset=None):
         super().__init__(obs_length, pred_length)
         self.time_step = time_step
 
@@ -94,6 +94,7 @@ class TrajectronInterface(Interface):
         self.test_vars = []
 
         self.smooth = smooth
+        self.dataset = dataset
 
     def load_model(self, model_dir):
         filenames = os.listdir(model_dir)
@@ -173,13 +174,16 @@ class TrajectronInterface(Interface):
                     x_st_t[target_index][:,:2] += dx / 80
                     x_st_t[target_index][:,2:4] += dv / 15
             
-            if self.smooth:
+            if self.smooth > 0:
                 for i, n in enumerate(nodes):
                     if torch.isnan(x[i]).sum() > 0:
                         continue
+                    if torch.sum(x[i,0] != 0) < self.obs_length:
+                        continue
+                    if self.smooth == 3 and not detect_tensor(x[i,:2], self.dataset.detect_opts):
+                        continue
                     x[i] = smooth_tensor(x[i])
                     x_st_t[i] = smooth_tensor(x_st_t[i])
-
 
             y = y_t.to(self.model.device)
             if robot_traj_st_t is not None:

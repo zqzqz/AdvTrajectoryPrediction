@@ -49,6 +49,19 @@ class ApolloscapeDataset(BaseDataset):
             "rotate_aa": 1.577
         }
 
+        self.detect_opts = {
+            "long": {
+                "d": 0.36,
+                "t": 0.15,
+                "scale": self.bounds["linear_a"]
+            },
+            "lat": {
+                "d": 0.36,
+                "t": 0.15,
+                "scale": self.bounds["rotate_a"]
+            },
+        }
+
     def format_data(self, data_dir, allow_incomplete_traces=True, allow_invisible_objects=True, require_one_complete=True, require_one_visible=True):
         files = os.listdir(data_dir)
         for filename in files:

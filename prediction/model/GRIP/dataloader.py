@@ -8,16 +8,17 @@ from scipy import spatial
 from prediction.model.base.dataloader import DataLoader
 from layers.graph import Graph
 import numpy as np
-from prediction.model.utils import smooth_tensor
+from prediction.model.utils import detect_tensor, smooth_tensor
 
 
 class GRIPDataLoader(DataLoader):
-    def __init__(self, obs_length=6, pred_length=6, graph_args={}):
+    def __init__(self, obs_length=6, pred_length=6, graph_args={}, dataset=None):
         super().__init__(obs_length, pred_length)
         self.max_num_object = graph_args["num_node"]
         self.neighbor_distance = 10
         self.graph = Graph(**graph_args)
         self.dev = 'cuda:0' 
+        self.dataset = dataset
 
     def preprocess(self, input_data, perturbation, rescale_x=1, rescale_y=1, smooth=False):
         rescale_xy = torch.ones((1,2,1,1)).to(self.dev)
@@ -107,9 +108,14 @@ class GRIPDataLoader(DataLoader):
         if perturbation is not None:
             for _obj_id in perturbation["ready_value"]:
                 ori_data[0,3:5,:self.obs_length,obj_index[_obj_id]] += torch.transpose(perturbation["ready_value"][_obj_id], 0, 1)
-        if smooth:
-            for i in [3, 4, 9]:
-                ori_data[0,i,:self.obs_length,:] = smooth_tensor(ori_data[0,i,:self.obs_length,:])
+        if smooth > 0:
+            for obj_i in range(num_visible_object):
+                if torch.sum(ori_data[0,3,:self.obs_length,obj_i] != 0) < self.obs_length:
+                    continue
+                if smooth == 3 and not detect_tensor(ori_data[0,3:5,:self.obs_length,obj_i].T, self.dataset.detect_opts):
+                    continue
+                for i in [3, 4, 9]:
+                    ori_data[0,i,:self.obs_length,obj_i] = smooth_tensor(ori_data[0,i,:self.obs_length,obj_i])
 
         feature_id = [3, 4, 9, 10]
         no_norm_loc_data = ori_data[:,feature_id]

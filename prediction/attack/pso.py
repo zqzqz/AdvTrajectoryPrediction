@@ -39,7 +39,7 @@ def objective(x, data, obj_id, predictor, loss_func, attack_opts):
 
 
 class PSOAttacker(BaseAttacker):
-    def __init__(self, obs_length, pred_length, attack_duration, predictor, n_particles=10, iter_num=200, c1=0.5, c2=0.3, w=1.0, bound=1, physical_bounds={}):
+    def __init__(self, obs_length, pred_length, attack_duration, predictor, n_particles=5, iter_num=100, c1=0.5, c2=0.3, w=1.0, bound=1, physical_bounds={}):
         super().__init__(obs_length, pred_length, attack_duration, predictor)
 
         self.iter_num = iter_num
