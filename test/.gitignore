@@ -1,3 +1,5 @@
 /case_study
 /data
 /log
+/detect
+report.log.*

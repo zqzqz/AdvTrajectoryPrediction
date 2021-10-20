@@ -46,12 +46,14 @@ datasets = {
     }
 }
 
+
 for dataset_name in datasets:
     datasets[dataset_name]["instance"] = datasets[dataset_name]["api"](datasets[dataset_name]["obs_length"], datasets[dataset_name]["pred_length"], datasets[dataset_name]["time_step"])
     samples_file = os.path.join(datasets[dataset_name]["data_dir"], "samples.txt")
     with open(samples_file, 'r') as f:
         lines = f.readlines()
     datasets[dataset_name]["samples"] = [(int(line.split(' ')[0]), int(line.split(' ')[1])) for line in lines]
+
 
 models = {
     "grip": {
@@ -76,16 +78,13 @@ models = {
     },
     "fqa": {
         "apolloscape": {
-            "pre_load_model": "data/fqa_apolloscape/model/original",
-            "xy_distribution": datasets["apolloscape"]["instance"].xy_distribution
+            "pre_load_model": "data/fqa_apolloscape/model/original"
         },
         "ngsim": {
-            "pre_load_model": "data/fqa_ngsim/model/original",
-            "xy_distribution": datasets["ngsim"]["instance"].xy_distribution
+            "pre_load_model": "data/fqa_ngsim/model/original"
         },
         "nuscenes": {
-            "pre_load_model": "data/fqa_nuscenes/model/original",
-            "xy_distribution": datasets["nuscenes"]["instance"].xy_distribution
+            "pre_load_model": "data/fqa_nuscenes/model/original"
         }
     },
     "trajectron": {
@@ -111,7 +110,7 @@ models = {
 }
 
 
-def load_model(model_name, dataset_name, augment=False, smooth=False, models=models):
+def load_model(model_name, dataset_name, augment=False, smooth=0, models=models):
     if model_name == "grip":
         from prediction.model.GRIP.interface import GRIPInterface
         api_class = GRIPInterface
@@ -123,11 +122,13 @@ def load_model(model_name, dataset_name, augment=False, smooth=False, models=mod
         api_class = TrajectronInterface
 
     model_config = copy.deepcopy(models)
+    model_config[model_name][dataset_name]["dataset"] = datasets[dataset_name]["instance"]
     if augment and not smooth:
         model_config[model_name][dataset_name]["pre_load_model"] = model_config[model_name][dataset_name]["pre_load_model"].replace("/original", "/augment")
     if smooth and not augment:
-        model_config[model_name][dataset_name]["pre_load_model"] = model_config[model_name][dataset_name]["pre_load_model"].replace("/original", "/smooth")
-        model_config[model_name][dataset_name]["smooth"] = True
+        if smooth == 1:
+            model_config[model_name][dataset_name]["pre_load_model"] = model_config[model_name][dataset_name]["pre_load_model"].replace("/original", "/smooth")
+        model_config[model_name][dataset_name]["smooth"] = smooth
     if smooth and augment:
         model_config[model_name][dataset_name]["pre_load_model"] = model_config[model_name][dataset_name]["pre_load_model"].replace("/original", "/augment_smooth")
         model_config[model_name][dataset_name]["smooth"] = True
@@ -140,13 +141,13 @@ def load_model(model_name, dataset_name, augment=False, smooth=False, models=mod
 
 #####################################################################################################################################################################
 
-def get_tag(augment=False, smooth=False, blackbox=False):
+def get_tag(augment=False, smooth=0, blackbox=False):
     if augment and smooth:
         return "augment_smooth"
     elif augment:
         return "augment"
-    elif smooth:
-        return "smooth"
+    elif smooth > 0:
+        return "smooth" if smooth == 1 else "smooth"+str(smooth)
     elif blackbox:
         return "blackbox"
     else:
@@ -180,7 +181,7 @@ def sample():
         f.write('\n'.join(["{} {}".format(scene[0], scene[1]) for scene in cases]))
 
 
-def attack(mode="single_frame", augment=False, smooth=False, blackbox=False):
+def attack(mode="single_frame", augment=False, smooth=0, blackbox=False):
     model_name = sys.argv[1]
     dataset_name = sys.argv[2]
     overwrite = int(sys.argv[3])
@@ -203,7 +204,7 @@ def attack(mode="single_frame", augment=False, smooth=False, blackbox=False):
                         overwrite=overwrite, samples=samples)
 
 
-def normal(mode="single_frame", augment=False, smooth=False):
+def normal(mode="single_frame", augment=False, smooth=0):
     model_name = sys.argv[1]
     dataset_name = sys.argv[2]
     overwrite = int(sys.argv[3])
@@ -221,7 +222,7 @@ def normal(mode="single_frame", augment=False, smooth=False):
                         overwrite=overwrite, samples=samples, attack_length=attack_length)
 
 
-def evaluate(mode="single_frame", augment=False, smooth=False, blackbox=False):
+def evaluate(mode="single_frame", augment=False, smooth=0, blackbox=False):
     if len(sys.argv) >= 3:
         model_list = [sys.argv[1]]
         dataset_list = [sys.argv[2]]
@@ -280,14 +281,14 @@ def attack_one():
 
 
 if __name__ == "__main__":
-    mode = "multi_frame"
-    augment = True
-    smooth = True
+    mode = "single_frame"
+    augment = False
+    smooth = 3
     blackbox = False
     normal(mode=mode, augment=augment, smooth=smooth)
     attack(mode=mode, augment=augment, smooth=smooth, blackbox=blackbox)
     evaluate(mode="normal_"+mode, augment=augment, smooth=smooth)
-    evaluate(mode=mode, augment=augment, smooth=smooth)
+    evaluate(mode=mode, augment=augment, smooth=smooth, blackbox=blackbox)
 
     # attack_one()
     # evaluate("transfer_multi_frame")

@@ -55,12 +55,12 @@ attack_length = datasets[dataset_name]["attack_length"]
 physical_bounds = datasets[dataset_name]["instance"].bounds
 attack_goal = "ade"
 augment = False
-smooth = True
+smooth = 3
 output_dir = "case_study"
 
 api = load_model(model_name, dataset_name, augment=augment, smooth=smooth, models=models)
 attacker = GradientAttacker(api.obs_length, api.pred_length, attack_length, api, seed_num=10, iter_num=100, physical_bounds=physical_bounds)
 
-tag = "{}{}".format("_augment" if augment else "", "_smooth" if smooth else "")
+tag = "{}{}".format("_augment" if augment else "", "_smooth" if smooth > 0 else "")
 test_sample(api, DATASET_DIR, case_id, obj_id, attack_length, "{}/normal{}.json".format(output_dir, tag), "{}/normal{}.png".format(output_dir, tag))
 attack_sample(attacker, DATASET_DIR, case_id, obj_id, attack_goal, "{}/attack{}.json".format(output_dir, tag), "{}/attack{}.png".format(output_dir, tag))
