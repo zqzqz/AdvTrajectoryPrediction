@@ -1,10 +1,9 @@
-mode1=$1
-mode2=$2
+mode=$1
 
-# nohup python test.py fqa apolloscape 0 ${mode1} ${mode2} > log/fqa_apolloscape_${mode1}_${mode2}.log &
+nohup python test.py fqa apolloscape 0 ${mode} > log/fqa_apolloscape_${mode}.log &
 # nohup python test.py fqa ngsim 0 > log/fqa_ngsim.log &
 # nohup python test.py fqa nuscenes 0 > log/fqa_nuscenes.log &
-nohup python test.py trajectron apolloscape 0 ${mode1} ${mode2} > log/trajectron_apolloscape_${mode1}_${mode2}.log &
+nohup python test.py trajectron apolloscape 0 ${mode} > log/trajectron_apolloscape_${mode}.log &
 # nohup python test.py trajectron ngsim 0 > log/trajectron_ngsim.log &
 # nohup python test.py trajectron nuscenes 0 > log/trajectron_nuscenes.log &
 # nohup python test.py trajectron_map nuscenes 0 > log/trajectron_map_nuscenes.log &
