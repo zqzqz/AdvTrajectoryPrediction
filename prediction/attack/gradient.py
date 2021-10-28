@@ -4,6 +4,7 @@ import logging
 from torch.autograd import Variable
 from torch import autograd
 import copy
+import random
 
 from .attack import BaseAttacker
 from .loss import attack_loss
@@ -58,13 +59,15 @@ class GradientAttacker(BaseAttacker):
         best_loss = 0x7fffffff
         best_out = None
         best_perturb = None
+        torch.manual_seed(1)
+        random.seed(1)
 
         for seed in range(self.seed_num):
             loss_not_improved_iter_cnt = 0
 
             for _obj_id in perturbation["value"]:
-                # perturbation["value"][_obj_id] = Variable(torch.rand(self.obs_length+self.attack_duration-1,2).cuda() * 2 * self.bound - self.bound)
-                perturbation["value"][_obj_id] = Variable(torch.zeros(self.obs_length+self.attack_duration-1,2).cuda()).detach()
+                perturbation["value"][_obj_id] = Variable(torch.rand(self.obs_length+self.attack_duration-1,2).cuda() * 2 * self.bound - self.bound)
+                # perturbation["value"][_obj_id] = Variable(torch.zeros(self.obs_length+self.attack_duration-1,2).cuda()).detach()
             
             # opt_Adam = torch.optim.Adam(list(perturbation["value"].values()), lr=self.learn_rate/10 if perturbation["attack_opts"]["type"] in ["ade", "fde"] else self.learn_rate)
 

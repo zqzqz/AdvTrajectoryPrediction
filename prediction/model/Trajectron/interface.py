@@ -180,7 +180,7 @@ class TrajectronInterface(Interface):
                         continue
                     if torch.sum(x[i,0] != 0) < self.obs_length:
                         continue
-                    if self.smooth == 3 and not detect_tensor(x[i,:2], self.dataset.detect_opts):
+                    if self.smooth == 3 and not detect_tensor(x[i,:2].T, self.dataset.detect_opts):
                         continue
                     x[i] = smooth_tensor(x[i])
                     x_st_t[i] = smooth_tensor(x_st_t[i])

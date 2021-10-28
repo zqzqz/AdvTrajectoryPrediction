@@ -70,9 +70,20 @@ def CUSUM(trace_array, opts):
     return result
 
 
+def variance_based_detect(trace_array, thres):
+    v = trace_array[1:,:] - trace_array[:-1,:]
+    a = v[1:,:] - v[:-1,:]
+    mean_a = np.mean(a, axis=0)
+    dist_a = a - np.tile(mean_a, (a.shape[0],1))
+    var_a = np.sum(np.sum(dist_a ** 2, axis=1)) / a.shape[0]
+    mean_scalar_v = np.sum(v ** 2) / a.shape[0]
+    var_a_rescale = var_a / mean_scalar_v
+    return var_a_rescale > thres
+
+
 def detect_array(trace_array, opts):
-    return CUSUM(trace_array, opts)
+    return variance_based_detect(trace_array, opts["thres"])
 
 
 def detect_tensor(trace_tensor, opts):
-    return CUSUM(trace_tensor.cpu().detach().numpy(), opts)
+    return variance_based_detect(trace_tensor.cpu().detach().numpy(), opts["thres"])

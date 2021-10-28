@@ -39,17 +39,17 @@ def objective(x, data, obj_id, predictor, loss_func, attack_opts):
 
 
 class PSOAttacker(BaseAttacker):
-    def __init__(self, obs_length, pred_length, attack_duration, predictor, n_particles=5, iter_num=100, c1=0.5, c2=0.3, w=1.0, bound=1, physical_bounds={}):
+    def __init__(self, obs_length, pred_length, attack_duration, predictor, n_particles=10, iter_num=100, c1=0.5, c2=0.3, w=1.0, bound=1, physical_bounds={}):
         super().__init__(obs_length, pred_length, attack_duration, predictor)
 
         self.iter_num = iter_num
         self.bound = bound
         self.physical_bounds = physical_bounds
         self.perturb_length = obs_length + attack_duration - 1
-
-        self.optimizer = ps.single.GlobalBestPSO(n_particles=n_particles, dimensions=self.perturb_length * 2, options={'c1': c1, 'c2': c2, 'w': w}, bounds=(-np.ones(self.perturb_length * 2) * bound, np.ones(self.perturb_length * 2) * bound), center=np.zeros(self.perturb_length * 2))
-
         self.loss = attack_loss
+        self.options = {'c1': c1, 'c2': c2, 'w': w}
+        self.n_particles = n_particles
+        self.bound = bound
 
     def run(self, data, obj_id, **attack_opts):
         try:
@@ -60,7 +60,9 @@ class PSOAttacker(BaseAttacker):
         attack_opts["bound"] = self.bound
         attack_opts["physical_bounds"] = self.physical_bounds
         
-        best_loss, best_perturb = self.optimizer.optimize(objective, iters=self.iter_num, data=data, obj_id=str(obj_id), predictor=self.predictor, loss_func=self.loss, attack_opts=attack_opts)
+
+        optimizer = ps.single.GlobalBestPSO(n_particles=self.n_particles, dimensions=self.perturb_length * 2, options=self.options, bounds=(-np.ones(self.perturb_length * 2) * self.bound, np.ones(self.perturb_length * 2) * self.bound), center=np.zeros(self.perturb_length * 2))
+        best_loss, best_perturb = optimizer.optimize(objective, iters=self.iter_num, data=data, obj_id=str(obj_id), predictor=self.predictor, loss_func=self.loss, attack_opts=attack_opts)
 
         best_perturb = best_perturb.reshape((self.perturb_length, 2))
         

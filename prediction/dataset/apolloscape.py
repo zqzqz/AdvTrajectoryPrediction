@@ -60,6 +60,7 @@ class ApolloscapeDataset(BaseDataset):
                 "t": 0.15,
                 "scale": self.bounds["rotate_a"]
             },
+            "thres": 0.02
         }
 
     def format_data(self, data_dir, allow_incomplete_traces=True, allow_invisible_objects=True, require_one_complete=True, require_one_visible=True):

@@ -79,8 +79,8 @@ class FQAInterface(Interface):
             sources[obj_index_map[perturbation["obj_id"]]][:self.obs_length,:2] += (perturbation["ready_value"][perturbation["obj_id"]] / np.max(self.dataset.xy_distribution["std"]))
         if self.smooth > 0:
             for obj_id, index in obj_index_map.items():
-                if torch.sum(sources[index][:self.obs_length,0] != 0) < self.obs_length:
-                    continue
+                # if torch.sum(sources[index][:self.obs_length,0] != 0) < self.obs_length:
+                #     continue
                 if self.smooth == 3 and not detect_tensor(sources[index][:self.obs_length,:2], self.dataset.detect_opts):
                     continue
                 sources[index][:self.obs_length] = smooth_tensor(sources[index][:self.obs_length])
