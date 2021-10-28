@@ -46,21 +46,38 @@ def draw():
     plt.savefig("case-study.pdf")
 
 
-case_id = 121
+from multiprocessing import Process
+
+case_id = 130
 obj_id = 4
-model_name = "grip"
+model_name = "fqa"
 dataset_name = "apolloscape"
-DATASET_DIR = "data/dataset/apolloscape"
+DATASET_DIR = "data/dataset/{}".format(dataset_name)
 attack_length = datasets[dataset_name]["attack_length"]
 physical_bounds = datasets[dataset_name]["instance"].bounds
 attack_goal = "ade"
-augment = False
-smooth = 3
-output_dir = "case_study"
+output_dir = "case_study/{}-{}-{}-{}-{}".format(model_name, dataset_name, case_id, obj_id, attack_goal)
 
-api = load_model(model_name, dataset_name, augment=augment, smooth=smooth, models=models)
-attacker = GradientAttacker(api.obs_length, api.pred_length, attack_length, api, seed_num=10, iter_num=100, physical_bounds=physical_bounds)
+def task(augment, smooth):
+    os.makedirs(output_dir, exist_ok=True)
+    tag = "{}{}".format("_augment" if augment else "", "_smooth"+str(smooth) if smooth > 0 else "")
+    sys.stdout = open(output_dir+"/log"+tag+".log", "w")
+    sys.stderr = open(output_dir+"/log"+tag+".log", "w")
 
-tag = "{}{}".format("_augment" if augment else "", "_smooth" if smooth > 0 else "")
-test_sample(api, DATASET_DIR, case_id, obj_id, attack_length, "{}/normal{}.json".format(output_dir, tag), "{}/normal{}.png".format(output_dir, tag))
-attack_sample(attacker, DATASET_DIR, case_id, obj_id, attack_goal, "{}/attack{}.json".format(output_dir, tag), "{}/attack{}.png".format(output_dir, tag))
+    api = load_model(model_name, "apolloscape", augment=augment, smooth=smooth, models=models)
+    attacker = GradientAttacker(api.obs_length, api.pred_length, attack_length, api, seed_num=10, iter_num=200, physical_bounds=physical_bounds)
+
+    test_sample(api, DATASET_DIR, case_id, obj_id, attack_length, "{}/normal{}.json".format(output_dir, tag), "{}/normal{}.png".format(output_dir, tag))
+    # attack_sample(attacker, DATASET_DIR, case_id, obj_id, attack_goal, "{}/attack{}.json".format(output_dir, tag), "{}/attack{}.png".format(output_dir, tag))
+
+# process_pool = []
+# for augment, smooth in zip([False, True, False, False, False, True], [0, 0, 1, 2, 3, 1]):
+    # task(augment, smooth)
+    # process_pool.append(Process(target=task, args=(augment, smooth,)))
+task(False, False)
+
+# for p in process_pool:
+#     p.start()
+
+# for p in process_pool:
+#     p.join()
