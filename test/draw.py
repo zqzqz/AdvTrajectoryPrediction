@@ -175,6 +175,82 @@ def defense():
     fig.delaxes(ax[ax_id])
 
     fig.savefig("figures/defense.pdf")
-    
-    
-defense()
+
+
+def density():
+    models = ["grip", "fqa", "trajectron"]
+    dataset_name = "apolloscape"
+    mode = "single_frame"
+    attack_goals = ["ade", "fde", "left", "right", "front", "rear"]
+    attack_modes = ["original", "drop0.5", "drop1"]
+    local_translate = {
+        "original": "Original data",
+        "drop0.5": "Drop 50% objects",
+        "drop1": "Drop 100% objects",
+    }
+
+    width = 0.2
+    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(12,3))
+    for ax_id, model_name in enumerate(models):
+        for k, attack_mode in enumerate(attack_modes):
+            figure_data = []
+            for attack_goal in attack_goals:
+                try:
+                    loss_data = np.loadtxt("data/{}_{}/{}/{}/{}/evaluate/loss_{}.txt".format(model_name, dataset_name, mode, "normal", attack_mode, attack_goal))
+                    loss_data[:,2] = -loss_data[:,2]
+                    if attack_goal in ["ade", "fde"]:
+                        loss_data[:,2] = loss_data[:,2] ** 0.5
+                    loss_data = loss_data[loss_data[:,2].argsort()]
+                    mean_loss = np.mean(loss_data[:,2])
+                except:
+                    print(model_name, attack_goal, attack_mode, "Error")
+                    mean_loss = 0
+                figure_data.append(mean_loss)
+            ax[ax_id].bar(np.arange(6)+(k-1)*width, figure_data, width, label=local_translate[attack_mode])
+        ax[ax_id].set_ylabel("Error (meter)")
+        ax[ax_id].set_title(translate["models"][model_name])
+        ax[ax_id].set_xticks(np.arange(6))
+        ax[ax_id].set_xticklabels([translate["metrics"][a] for a in attack_goals])
+        ax[ax_id].legend()
+    fig.savefig("figures/density.png")
+
+
+def attack_length():
+    models = ["grip", "fqa", "trajectron"]
+    dataset_name = "apolloscape"
+    attack_goals = ["ade", "fde", "left", "right", "front", "rear"]
+    attack_modes = ["original", "length1", "length2", "length3"]
+    local_translate = {
+        "original": "Single frame",
+        "length1": "2 frames (1s)",
+        "length2": "4 frames (2s)",
+        "length3": "6 frames (3s)",
+    }
+
+    width = 0.2
+    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(12,3))
+    for ax_id, model_name in enumerate(models):
+        for k, attack_mode in enumerate(attack_modes):
+            figure_data = []
+            for attack_goal in attack_goals:
+                try:
+                    loss_data = np.loadtxt("data/{}_{}/{}/{}/{}/evaluate/loss_{}.txt".format(model_name, dataset_name, "single_frame" if attack_mode == "original" else "multi_frame", "attack", "original" if attack_mode == "length3" else attack_mode, attack_goal))
+                    loss_data[:,2] = -loss_data[:,2]
+                    if attack_goal in ["ade", "fde"]:
+                        loss_data[:,2] = loss_data[:,2] ** 0.5
+                    loss_data = loss_data[loss_data[:,2].argsort()]
+                    mean_loss = np.mean(loss_data[:,2])
+                except:
+                    print(model_name, attack_goal, attack_mode, "Error")
+                    mean_loss = 0
+                figure_data.append(mean_loss)
+            ax[ax_id].bar(np.arange(6)+(k-1.5)*width, figure_data, width, label=local_translate[attack_mode])
+        ax[ax_id].set_ylabel("Error (meter)")
+        ax[ax_id].set_title(translate["models"][model_name])
+        ax[ax_id].set_xticks(np.arange(6))
+        ax[ax_id].set_xticklabels([translate["metrics"][a] for a in attack_goals])
+        ax[ax_id].legend()
+    fig.savefig("figures/attack_length.png")
+
+density()
+# attack_length()
