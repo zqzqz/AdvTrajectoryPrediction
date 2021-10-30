@@ -9,7 +9,21 @@ import torch
 import json
 import pickle
 import matplotlib.pyplot as plt
+from sklearn.metrics import roc_curve, auc
+from sklearn import svm
 
+
+translate = {
+    "models": {
+        "grip": "GRIP++",
+        "fqa": "FQA",
+        "trajectron": "Trajectron++"
+    },
+    "detect": {
+        "svm": "SVM model",
+        "variance": "Threshold on variance of acceleration"
+    }
+}
 
 mode = "multi_frame"
 dataset_name = "apolloscape"
@@ -191,7 +205,6 @@ def fit_model(data_label="", mode="svm"):
             features.append(preprocess(traces[i]))
         features = np.array(features)
 
-        from sklearn import svm
         clf = svm.SVC()
         clf.fit(features, labels)
         pickle.dump(clf, open("detect/model_svm.sav", 'wb'))
@@ -264,14 +277,29 @@ def test_model(data_label="", mode="svm"):
         clf = pickle.load(open("detect/model_svm.sav", 'rb'))
         results = clf.predict(features)
 
+        y_test_pred = clf.decision_function(features)
+        test_fpr, test_tpr, te_thresholds = roc_curve(labels, y_test_pred)
+
     elif mode == "variance":
         with open("detect/variance.txt", 'r') as f:
             t = float(f.read())
+
+        test_fpr, test_tpr, te_thresholds = np.zeros(300), np.zeros(300), np.zeros(300)
+        for i, tmp_t in enumerate([0.015 * k for k in range(300)]):
+            results = np.zeros(traces.shape[0])
+            for k in range(traces.shape[0]):
+                results[k] = variance_based_detect(traces[k], tmp_t)
+            report = evaluate(results, labels)
+            test_fpr[i] = report["FPR"]
+            test_tpr[i] = report["TPR"]
+            te_thresholds[i] = tmp_t
+
         results = np.zeros(traces.shape[0])
         for i in range(traces.shape[0]):
             results[i] = variance_based_detect(traces[i], t)
 
     print(evaluate(results, labels))
+    return test_fpr, test_tpr, te_thresholds
 
 
 def tmp():
@@ -314,15 +342,34 @@ def tmp():
         print(results)
 
 
+def draw_roc():
+    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(8,4))
+    for i, mode in enumerate(["svm", "variance"]):
+        for model_name in ["fqa", "grip", "trajectron"]:
+            fpr, tpr, thres = test_model(data_label="test_"+model_name, mode=mode)
+            np.save(open("detect/{}-{}-{}.npy".format(mode, model_name, "fpr"), "wb"), fpr)
+            np.save(open("detect/{}-{}-{}.npy".format(mode, model_name, "tpr"), "wb"), tpr)
+            np.save(open("detect/{}-{}-{}.npy".format(mode, model_name, "thres"), "wb"), thres)
+            ax[i].plot(fpr, tpr, label="AUC {}={:4f}".format(translate["models"][model_name], auc(fpr, tpr)))
+        ax[i].plot([0,1],[0,1],'g--')
+        ax[i].legend()
+        ax[i].set_xlabel("False Positive Rate")
+        ax[i].set_ylabel("True Positive Rate")
+        ax[i].set_title(translate["detect"][mode])
+    fig.savefig("figures/detect.pdf")
+
+
+
 # generate_train_data(model_name="", data_label="train")
 # generate_test_data(model_name="grip", data_label="test_grip")
 # generate_test_data(model_name="fqa", data_label="test_fqa")
 # generate_test_data(model_name="trajectron", data_label="test_trajectron")
 
-# mode = "variance"
+# mode = "svm"
 # fit_model(data_label="train", mode=mode)
 # test_model(data_label="test_grip", mode=mode)
 # test_model(data_label="test_fqa", mode=mode)
 # test_model(data_label="test_trajectron", mode=mode)
 
-tmp()
+
+draw_roc()

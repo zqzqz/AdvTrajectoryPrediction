@@ -32,7 +32,6 @@ for model_name in models:
                     print(T, attack_goal, "Empty")
 
 
-
 for model_name in models:
     for dataset_name in datasets:
         print()
@@ -40,4 +39,14 @@ for model_name in models:
         for T in data[(model_name, dataset_name)]:
             print(','.join([T] + [str(data[(model_name, dataset_name)][T][attack_goal]) for attack_goal in attack_goals]))
 
-
+dataset_name = "apolloscape"
+for model_name in models:
+    print("target", model_name)
+    for m in models:
+        if m == model_name:
+            continue
+        score = 0
+        for attack_goal in attack_goals:
+            score += data[(model_name, dataset_name)]["transfer/"+m][attack_goal] / data[(model_name, dataset_name)]["attack/original"][attack_goal]
+        score /= 6
+        print("source", m, score)

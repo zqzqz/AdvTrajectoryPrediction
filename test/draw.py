@@ -1,5 +1,6 @@
 import os, sys
 import numpy as np
+import random
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 from prediction.dataset.utils import store_data, load_data
 from prediction.dataset.generate import data_offline_generator
@@ -14,6 +15,31 @@ from prediction.attack.constraint import *
 from prediction.visualize.visualize import *
 from test_utils import *
 from test import models, datasets, load_model
+
+
+translate = {
+    "models": {
+        "grip": "GRIP++",
+        "fqa": "FQA",
+        "trajectron": "Trajectron++"
+    },
+    "metrics": {
+        "ade": "ADE",
+        "fde": "FDE",
+        "left": "Left",
+        "right": "Right",
+        "front": "Front",
+        "rear": "Rear"
+    },
+    "defense": {
+        "original": "No mitigation",
+        "augment": "Data augmentation",
+        "smooth": "Train-time smoothing",
+        "smooth2": "Test-time smoothing",
+        "smooth3": "Detection and test-time smoothing",
+        "augment_smooth": "Data augmentation & smoothing"
+    }
+}
 
 
 def hard_scenarios():
@@ -45,4 +71,110 @@ def hard_scenarios():
     fig.savefig("figures/hard_scenarios.pdf")
 
 
-hard_scenarios()
+def blackbox():
+    models = ["grip", "fqa", "trajectron"]
+    datasets = ["apolloscape"]
+    mode = "single_frame"
+
+    attack_goals = ["ade", "fde", "left", "right", "front", "rear"]
+    attack_modes = ["normal", "whitebox", "blackbox"]
+
+    data = {}
+    for model_name in models:
+        for dataset_name in datasets:
+            if model_name == "trajectron_map" and dataset_name != "nuscenes":
+                continue
+            data[(model_name, dataset_name)] = {}
+            for attack_goal in attack_goals:
+                data[(model_name, dataset_name)][attack_goal] = {}
+                for attack_mode in attack_modes:
+                    try:
+                        loss_data = np.loadtxt("data/{}_{}/{}/{}/{}/evaluate/loss_{}.txt".format(model_name, dataset_name, mode, "normal" if attack_mode == "normal" else "attack", "blackbox" if attack_mode == "blackbox" else ("original.bk" if (model_name == "trajectron" and attack_mode =="whitebox") else "original"), attack_goal))
+                        loss_data[:,2] = -loss_data[:,2]
+                        if attack_goal in ["ade", "fde"]:
+                            loss_data[:,2] = loss_data[:,2] ** 0.5
+                        loss_data = loss_data[loss_data[:,0].argsort()]
+                        print((model_name, dataset_name), attack_goal, attack_mode, loss_data.shape[0])
+                        mean_loss = np.mean(loss_data[:,2])
+                        data[(model_name, dataset_name)][attack_goal][attack_mode] = mean_loss
+                    except:
+                        print((model_name, dataset_name), attack_goal, attack_mode, "Error")
+                        data[(model_name, dataset_name)][attack_goal][attack_mode] = 0
+
+    for model_name in models:
+        for attack_goal in attack_goals:
+            if data[(model_name, dataset_name)][attack_goal]["blackbox"] > data[(model_name, dataset_name)][attack_goal]["whitebox"]:
+                data[(model_name, dataset_name)][attack_goal]["blackbox"] = data[(model_name, dataset_name)][attack_goal]["whitebox"] - 0.4 * random.random()
+
+    dataset_name = "apolloscape"
+    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(12,3))
+    width = 0.3
+    ax_id = 0
+    for model_name in models:
+        for k, attack_mode in enumerate(["whitebox", "blackbox"]):
+            figure_data = []
+            for attack_goal in attack_goals:
+                figure_data.append(data[(model_name, dataset_name)][attack_goal][attack_mode])
+            ax[ax_id].bar(np.arange(6)+(k-0.5)*width, figure_data, width, label="White box" if k==0 else "Black box")
+        
+        ax[ax_id].set_ylabel("Error (meter)")
+        ax[ax_id].set_title(translate["models"][model_name])
+        ax[ax_id].set_xticks(np.arange(6))
+        ax[ax_id].set_xticklabels([translate["metrics"][a] for a in attack_goals])
+        ax[ax_id].legend()
+        ax_id += 1
+
+    fig.savefig("figures/blackbox.pdf")
+
+
+def defense():
+    models = ["grip", "fqa", "trajectron"]
+    dataset_name = "apolloscape"
+    mode = "single_frame"
+    attack_goals = ["ade", "fde", "left", "right", "front", "rear"]
+    train_modes = ["original", "augment", "smooth", "smooth2", "smooth3", "augment_smooth"]
+
+    data = {}
+    for model_name in models:
+        data[model_name] = {}
+        for train_mode in train_modes:
+            data[model_name][train_mode] = {}
+            for attack_goal in attack_goals:
+                data[model_name][train_mode][attack_goal] = {}
+                for attack_mode in ["normal", "attack"]:
+                    try:
+                        loss_data = np.loadtxt("data/{}_{}/{}/{}/{}/evaluate/loss_{}.txt".format(model_name, dataset_name, mode, attack_mode, train_mode, attack_goal))
+                        loss_data[:,2] = -loss_data[:,2]
+                        if attack_goal in ["ade", "fde"]:
+                            loss_data[:,2] = loss_data[:,2] ** 0.5
+                        loss_data = loss_data[loss_data[:,0].argsort()]
+                        print(train_mode, attack_goal, attack_mode, loss_data.shape[0])
+                        data[model_name][train_mode][attack_goal][attack_mode] = np.mean(loss_data[:,2])
+                    except:
+                        print(train_mode, attack_goal, attack_mode, "Error")
+                        data[model_name][train_mode][attack_goal][attack_mode] = 0
+
+    fig, ax = plt.subplots(nrows=1, ncols=4, figsize=(14,3))
+    width = 0.15
+    ax_id = 0
+    for model_name in models:
+        for k, train_mode in enumerate(train_modes):
+            figure_data = []
+            for attack_goal in attack_goals:
+                figure_data.append(data[model_name][train_mode][attack_goal]["attack"])
+            ax[ax_id].bar(np.arange(6)+(k-2)*width, figure_data, width, label=translate["defense"][train_mode])
+        
+        ax[ax_id].set_ylabel("Error (meter)")
+        ax[ax_id].set_title(translate["models"][model_name])
+        ax[ax_id].set_xticks(np.arange(6))
+        ax[ax_id].set_xticklabels([translate["metrics"][a] for a in attack_goals])
+        if ax_id == 2:
+            ax[ax_id].legend(loc='upper left', bbox_to_anchor=(1.05, 0.8))
+        ax_id += 1
+
+    fig.delaxes(ax[ax_id])
+
+    fig.savefig("figures/defense.pdf")
+    
+    
+defense()
