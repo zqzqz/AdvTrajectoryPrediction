@@ -21,7 +21,7 @@ translate = {
     },
     "detect": {
         "svm": "SVM model",
-        "variance": "Threshold on variance of acceleration"
+        "variance": "Rule-based"
     }
 }
 
@@ -166,9 +166,23 @@ def generate_train_data(dataset_name="apolloscape", model_name="grip", data_labe
 def generate_test_data(dataset_name="apolloscape", model_name="grip", data_label="test", mode="single_frame"):
     samples = datasets[dataset_name]["samples"]
     attack_length = datasets[dataset_name]["attack_length"] if mode == "multi_frame" else 1
+    data_dir = "data/dataset/{}/multi_frame/raw".format(dataset_name)
+    observe_length = 6
 
     normal_traces = []
     attack_traces = []
+    for case_id in range(len(os.listdir(data_dir))):
+        input_data = load_data(os.path.join(data_dir, "{}.json".format(case_id)))
+        for obj_id, obj in input_data["objects"].items():
+            if (int(case_id), int(obj_id)) in samples:
+                continue
+            if obj["type"] not in [1, 2]:
+                continue
+            if np.sum(obj["observe_mask"][:observe_length] > 0) != observe_length:
+                continue
+            observe_trace = obj["observe_trace"][:observe_length]
+            normal_traces.append(observe_trace)
+
     for name, obj_id in samples:
         normal_file = os.path.join("data/{}_{}/{}/normal/original/raw/{}-{}.json".format(model_name, dataset_name, mode, name, obj_id))
         normal_data = load_data(normal_file)
@@ -176,7 +190,7 @@ def generate_test_data(dataset_name="apolloscape", model_name="grip", data_label
         for i in range(attack_length):
             observe_trace = normal_data["output_data"][str(i)]["objects"][str(obj_id)]["observe_trace"]
             observe_traces.append(observe_trace)
-            normal_traces.append(observe_trace)
+            # normal_traces.append(observe_trace)
 
         for attack_goal in attack_goals:
             attack_file = normal_file = os.path.join("data/{}_{}/{}/attack/original/raw/{}-{}-{}.json".format(model_name, dataset_name, mode, name, obj_id, attack_goal))
@@ -346,7 +360,7 @@ def draw_roc():
     fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(8,4))
     for i, mode in enumerate(["svm", "variance"]):
         for model_name in ["fqa", "grip", "trajectron"]:
-            fpr, tpr, thres = test_model(data_label="test_"+model_name, mode=mode)
+            fpr, tpr, thres = test_model(data_label="test_"+model_name+"1", mode=mode)
             np.save(open("detect/{}-{}-{}.npy".format(mode, model_name, "fpr"), "wb"), fpr)
             np.save(open("detect/{}-{}-{}.npy".format(mode, model_name, "tpr"), "wb"), tpr)
             np.save(open("detect/{}-{}-{}.npy".format(mode, model_name, "thres"), "wb"), thres)
@@ -359,17 +373,15 @@ def draw_roc():
     fig.savefig("figures/detect.pdf")
 
 
-
 # generate_train_data(model_name="", data_label="train")
-# generate_test_data(model_name="grip", data_label="test_grip")
-# generate_test_data(model_name="fqa", data_label="test_fqa")
-# generate_test_data(model_name="trajectron", data_label="test_trajectron")
+generate_test_data(model_name="grip", data_label="test_grip1")
+generate_test_data(model_name="fqa", data_label="test_fqa1")
+generate_test_data(model_name="trajectron", data_label="test_trajectron1")
 
 # mode = "svm"
 # fit_model(data_label="train", mode=mode)
-# test_model(data_label="test_grip", mode=mode)
-# test_model(data_label="test_fqa", mode=mode)
-# test_model(data_label="test_trajectron", mode=mode)
-
+# test_model(data_label="test_grip1", mode=mode)
+# test_model(data_label="test_fqa1", mode=mode)
+# test_model(data_label="test_trajectron1", mode=mode)
 
 draw_roc()

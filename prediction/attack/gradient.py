@@ -31,12 +31,11 @@ class GradientAttacker(BaseAttacker):
             self.predictor.model.eval()
         except:
             pass
+
+        self.predictor.model.train()
         perturbation = {"obj_id": obj_id, "loss": self.loss, "value": {}, "ready_value": {}, "attack_opts": attack_opts}
         
-        if attack_opts["type"] in ["ade", "fde"]:
-            lr = self.learn_rate / 10
-        else:
-            lr = self.learn_rate
+        lr = self.learn_rate
 
         if "mode" in attack_opts:
             mode = attack_opts["mode"]

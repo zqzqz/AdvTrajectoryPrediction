@@ -36,8 +36,8 @@ translate = {
         "augment": "Data augmentation",
         "smooth": "Train-time smoothing",
         "smooth2": "Test-time smoothing",
-        "smooth3": "Detection and test-time smoothing",
-        "augment_smooth": "Data augmentation & smoothing"
+        "smooth3": "Detection &\n test-time smoothing",
+        "augment_smooth": "Data augmentation &\n train-time smoothing"
     }
 }
 
@@ -68,7 +68,7 @@ def hard_scenarios():
         ax[ax_id].set_ylim([(min_y + max_y)/ 2 - scale, (min_y + max_y)/ 2 + scale])
         ax[ax_id].legend()
         ax_id += 1
-    fig.savefig("figures/hard_scenarios.pdf")
+    fig.savefig("figures/hard_scenarios.pdf", bbox_inches='tight')
 
 
 def blackbox():
@@ -107,7 +107,7 @@ def blackbox():
                 data[(model_name, dataset_name)][attack_goal]["blackbox"] = data[(model_name, dataset_name)][attack_goal]["whitebox"] - 0.4 * random.random()
 
     dataset_name = "apolloscape"
-    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(12,3))
+    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(14,2.5))
     width = 0.3
     ax_id = 0
     for model_name in models:
@@ -124,7 +124,7 @@ def blackbox():
         ax[ax_id].legend()
         ax_id += 1
 
-    fig.savefig("figures/blackbox.pdf")
+    fig.savefig("figures/blackbox.pdf", bbox_inches='tight')
 
 
 def defense():
@@ -154,7 +154,7 @@ def defense():
                         print(train_mode, attack_goal, attack_mode, "Error")
                         data[model_name][train_mode][attack_goal][attack_mode] = 0
 
-    fig, ax = plt.subplots(nrows=1, ncols=4, figsize=(14,3))
+    fig, ax = plt.subplots(nrows=1, ncols=4, figsize=(16,2.5))
     width = 0.15
     ax_id = 0
     for model_name in models:
@@ -169,12 +169,12 @@ def defense():
         ax[ax_id].set_xticks(np.arange(6))
         ax[ax_id].set_xticklabels([translate["metrics"][a] for a in attack_goals])
         if ax_id == 2:
-            ax[ax_id].legend(loc='upper left', bbox_to_anchor=(1.05, 0.8))
+            ax[ax_id].legend(loc='upper left', bbox_to_anchor=(1.05, 0.9))
         ax_id += 1
 
     fig.delaxes(ax[ax_id])
 
-    fig.savefig("figures/defense.pdf")
+    fig.savefig("figures/defense.pdf", bbox_inches='tight')
 
 
 def density():
@@ -190,13 +190,13 @@ def density():
     }
 
     width = 0.2
-    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(12,3))
+    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(14,2.5))
     for ax_id, model_name in enumerate(models):
         for k, attack_mode in enumerate(attack_modes):
             figure_data = []
             for attack_goal in attack_goals:
                 try:
-                    loss_data = np.loadtxt("data/{}_{}/{}/{}/{}/evaluate/loss_{}.txt".format(model_name, dataset_name, mode, "normal", attack_mode, attack_goal))
+                    loss_data = np.loadtxt("data/{}_{}/{}/{}/{}/evaluate/loss_{}.txt".format(model_name, dataset_name, mode, "attack", attack_mode, attack_goal))
                     loss_data[:,2] = -loss_data[:,2]
                     if attack_goal in ["ade", "fde"]:
                         loss_data[:,2] = loss_data[:,2] ** 0.5
@@ -212,7 +212,7 @@ def density():
         ax[ax_id].set_xticks(np.arange(6))
         ax[ax_id].set_xticklabels([translate["metrics"][a] for a in attack_goals])
         ax[ax_id].legend()
-    fig.savefig("figures/density.png")
+    fig.savefig("figures/density.pdf", bbox_inches='tight')
 
 
 def attack_length():
@@ -227,8 +227,9 @@ def attack_length():
         "length3": "6 frames (3s)",
     }
 
+    n = 0
     width = 0.2
-    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(12,3))
+    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(14,2.5))
     for ax_id, model_name in enumerate(models):
         for k, attack_mode in enumerate(attack_modes):
             figure_data = []
@@ -239,7 +240,10 @@ def attack_length():
                     if attack_goal in ["ade", "fde"]:
                         loss_data[:,2] = loss_data[:,2] ** 0.5
                     loss_data = loss_data[loss_data[:,2].argsort()]
+                    if attack_goal in ["left", "right", "front", "rear"] and attack_mode == "length3":
+                        n += np.sum(loss_data[:, 2] > 1.85)
                     mean_loss = np.mean(loss_data[:,2])
+                    print(model_name, attack_goal, attack_mode, mean_loss, loss_data.shape[0])
                 except:
                     print(model_name, attack_goal, attack_mode, "Error")
                     mean_loss = 0
@@ -250,7 +254,56 @@ def attack_length():
         ax[ax_id].set_xticks(np.arange(6))
         ax[ax_id].set_xticklabels([translate["metrics"][a] for a in attack_goals])
         ax[ax_id].legend()
-    fig.savefig("figures/attack_length.png")
+    fig.savefig("figures/attack_length.pdf", bbox_inches='tight')
+    print(n/1200)
 
-density()
-# attack_length()
+
+def threshold():
+    models = ["grip", "fqa", "trajectron"]
+    dataset_name = "apolloscape"
+    attack_goals = ["ade", "fde", "left", "right", "front", "rear"]
+    attack_modes = ["original", "thres0.5", "thres0.2", "normal"]
+    local_translate = {
+        "original": "1-meter (original)",
+        "thres0.5": "0.5-meter",
+        "thres0.2": "0.2-meter",
+        "normal": "No perturbation"
+    }
+
+    n = 0
+    width = 0.2
+    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(14,2.5))
+    for ax_id, model_name in enumerate(models):
+        for k, attack_mode in enumerate(attack_modes):
+            figure_data = []
+            for attack_goal in attack_goals:
+                try:
+                    loss_data = np.loadtxt("data/{}_{}/{}/{}/{}/evaluate/loss_{}.txt".format(model_name, dataset_name, "single_frame", "attack" if attack_mode != "normal" else "normal", attack_mode if attack_mode != "normal" else "original", attack_goal))
+                    loss_data[:,2] = -loss_data[:,2]
+                    if attack_goal in ["ade", "fde"]:
+                        loss_data[:,2] = loss_data[:,2] ** 0.5
+                    loss_data = loss_data[loss_data[:,2].argsort()]
+                    if attack_goal in ["left", "right", "front", "rear"] and attack_mode == "thres0.2":
+                        n += np.sum(loss_data[:,2] > 1.85)
+                    mean_loss = np.mean(loss_data[:,2])
+                    print(model_name, attack_goal, attack_mode, mean_loss)
+                except:
+                    print(model_name, attack_goal, attack_mode, "Error")
+                    mean_loss = 0
+                figure_data.append(mean_loss)
+            ax[ax_id].bar(np.arange(6)+(k-1.5)*width, figure_data, width, label=local_translate[attack_mode])
+        ax[ax_id].set_ylabel("Error (meter)")
+        ax[ax_id].set_title(translate["models"][model_name])
+        ax[ax_id].set_xticks(np.arange(6))
+        ax[ax_id].set_xticklabels([translate["metrics"][a] for a in attack_goals])
+        ax[ax_id].legend()
+    fig.savefig("figures/threshold.pdf", bbox_inches='tight')
+    print(n/1200)
+
+
+# hard_scenarios()
+# blackbox()
+# density()
+attack_length()
+# threshold()
+# defense()

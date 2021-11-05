@@ -193,7 +193,7 @@ def attack(mode="single_frame", augment=False, smooth=0, blackbox=False):
     tag = get_tag(augment=augment, smooth=smooth, blackbox=blackbox)
 
     if not blackbox:
-        attacker = GradientAttacker(api.obs_length, api.pred_length, attack_length, api, seed_num=5, iter_num=100, physical_bounds=physical_bounds)
+        attacker = GradientAttacker(api.obs_length, api.pred_length, attack_length, api, seed_num=10, iter_num=200, physical_bounds=physical_bounds, bound=1, learn_rate=0.001)
     else:
         attacker = PSOAttacker(api.obs_length, api.pred_length, attack_length, api, physical_bounds=physical_bounds)
 
@@ -231,7 +231,7 @@ def evaluate(mode="single_frame", augment=False, smooth=0, blackbox=False):
         dataset_list = list(datasets.keys())
 
     tag = get_tag(augment=augment, smooth=smooth, blackbox=blackbox)
-
+    
     for model_name in model_list:
         for dataset_name in dataset_list:
             if model_name == "trajectron_map" and dataset_name in ["apolloscape", "ngsim"]:
@@ -286,7 +286,7 @@ if __name__ == "__main__":
     smooth = 0
     blackbox = False
     # normal(mode=mode, augment=augment, smooth=smooth)
-    # attack(mode=mode, augment=augment, smooth=smooth, blackbox=blackbox)
+    attack(mode=mode, augment=augment, smooth=smooth, blackbox=blackbox)
     # evaluate(mode="normal_"+mode, augment=augment, smooth=smooth)
     evaluate(mode=mode, augment=augment, smooth=smooth, blackbox=blackbox)
 

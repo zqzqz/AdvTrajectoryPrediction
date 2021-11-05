@@ -4,12 +4,13 @@ import matplotlib.pyplot as plt
 
 models = ["grip", "fqa", "trajectron", "trajectron_map"]
 datasets = ["apolloscape", "ngsim", "nuscenes"]
-mode = "multi_frame"
+mode = "single_frame"
 
 attack_goals = ["ade", "fde", "left", "right", "front", "rear"]
 attack_modes = ["normal", "whitebox", "blackbox"]
 
 data = {}
+n = 0
 for model_name in models:
     for dataset_name in datasets:
         if model_name == "trajectron_map" and dataset_name != "nuscenes":
@@ -23,14 +24,18 @@ for model_name in models:
                     loss_data[:,2] = -loss_data[:,2]
                     if attack_goal in ["ade", "fde"]:
                         loss_data[:,2] = loss_data[:,2] ** 0.5
+                    if attack_mode == "normal" and attack_goal in ["left", "right", "front", "rear"]:
+                        loss_data[:,2] = np.absolute(loss_data[:,2])
+                    if attack_goal in ["left", "right", "front", "rear"] and attack_mode == "whitebox":
+                        n += np.sum(loss_data[:,2] > 1.85)
                     loss_data = loss_data[loss_data[:,0].argsort()]
-                    print((model_name, dataset_name), attack_goal, attack_mode, loss_data.shape[0])
                     mean_loss = np.mean(loss_data[:,2])
                     data[(model_name, dataset_name)][attack_goal][attack_mode] = mean_loss
                 except:
                     print((model_name, dataset_name), attack_goal, attack_mode, "Error")
                     data[(model_name, dataset_name)][attack_goal][attack_mode] = 0
-                
+
+print(n/(100*4*10))
 
 print(",".join([""] + [attack_goal+",," for attack_goal in attack_goals]))
 print(",".join([""] + [attack_mode for attack_mode in attack_modes] * 6))
@@ -39,3 +44,18 @@ for model_name in models:
         if model_name == "trajectron_map" and dataset_name != "nuscenes":
             continue
         print(",".join(["{}-{}".format(model_name, dataset_name)] + [",".join(["{:4f}".format(data[(model_name, dataset_name)][attack_goal][attack_mode]) for attack_mode in attack_modes]) for attack_goal in attack_goals]))
+
+d = {}
+for attack_goal in attack_goals:
+    d[attack_goal] = []
+for model_name in models:
+    for dataset_name in datasets:
+        if model_name == "trajectron_map" and dataset_name != "nuscenes":
+            continue
+        for attack_goal in attack_goals:
+            x = data[(model_name, dataset_name)][attack_goal]["whitebox"] / data[(model_name, dataset_name)][attack_goal]["normal"] -1
+            d[attack_goal].append(x)
+for attack_goal in attack_goals:
+    print(d[attack_goal])
+    print(attack_goal, sum(d[attack_goal])/len(d[attack_goal]))
+
