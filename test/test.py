@@ -285,13 +285,7 @@ if __name__ == "__main__":
     augment = False
     smooth = 0
     blackbox = False
-    # normal(mode=mode, augment=augment, smooth=smooth)
+    normal(mode=mode, augment=augment, smooth=smooth)
     attack(mode=mode, augment=augment, smooth=smooth, blackbox=blackbox)
-    # evaluate(mode="normal_"+mode, augment=augment, smooth=smooth)
+    evaluate(mode="normal_"+mode, augment=augment, smooth=smooth)
     evaluate(mode=mode, augment=augment, smooth=smooth, blackbox=blackbox)
-
-    # evaluate("single_frame", blackbox=True)
-    # evaluate("multi_frame", blackbox=True)
-
-    # attack_one()
-    # evaluate("transfer_multi_frame")

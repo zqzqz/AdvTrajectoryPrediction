@@ -2,17 +2,11 @@
 	path = prediction/TrafficPredict/TrafficPredict
 	url = https://github.com/huang-xx/TrafficPredict.git
 	ignore = all
-[submodule "SpectralCows/Spectral-Trajectory-and-Behavior-Prediction"]
-	path = prediction/SpectralCows/Spectral-Trajectory-and-Behavior-Prediction
-	url = https://github.com/rohanchandra30/Spectral-Trajectory-and-Behavior-Prediction.git
-	ignore = all
 [submodule "prediction/GRIP/GRIP"]
 	path = prediction/GRIP/GRIP
 	url = https://github.com/xincoder/GRIP.git
 	ignore = all
-[submodule "prediction/model/EncDec/conv-social-pooling"]
-	path = prediction/model/EncDec/conv-social-pooling
-	url = https://github.com/nachiket92/conv-social-pooling.git
 [submodule "prediction/model/FQA/FQA"]
 	path = prediction/model/FQA/FQA
 	url = git@github.com:nitinkamra1992/FQA
+	ignore = all
