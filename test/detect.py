@@ -374,13 +374,13 @@ def draw_roc():
 
 
 # generate_train_data(model_name="", data_label="train")
-generate_test_data(model_name="grip", data_label="test_grip1")
-generate_test_data(model_name="fqa", data_label="test_fqa1")
-generate_test_data(model_name="trajectron", data_label="test_trajectron1")
+# generate_test_data(model_name="grip", data_label="test_grip1")
+# generate_test_data(model_name="fqa", data_label="test_fqa1")
+# generate_test_data(model_name="trajectron", data_label="test_trajectron1")
 
-# mode = "svm"
-# fit_model(data_label="train", mode=mode)
-# test_model(data_label="test_grip1", mode=mode)
+mode = "svm"
+fit_model(data_label="train", mode=mode)
+test_model(data_label="test_grip1", mode=mode)
 # test_model(data_label="test_fqa1", mode=mode)
 # test_model(data_label="test_trajectron1", mode=mode)
 

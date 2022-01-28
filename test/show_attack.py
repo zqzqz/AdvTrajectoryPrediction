@@ -25,7 +25,8 @@ for model_name in models:
                     if attack_goal in ["ade", "fde"]:
                         loss_data[:,2] = loss_data[:,2] ** 0.5
                     if attack_mode == "normal" and attack_goal in ["left", "right", "front", "rear"]:
-                        loss_data[:,2] = np.absolute(loss_data[:,2])
+                        pass
+                        # loss_data[:,2] = np.absolute(loss_data[:,2])
                     if attack_goal in ["left", "right", "front", "rear"] and attack_mode == "whitebox":
                         n += np.sum(loss_data[:,2] > 1.85)
                     loss_data = loss_data[loss_data[:,0].argsort()]

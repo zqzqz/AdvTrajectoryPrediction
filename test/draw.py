@@ -43,7 +43,8 @@ translate = {
 
 
 def hard_scenarios():
-    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(8,4))
+    # fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(8,4))
+    plt.figure(figsize=(5,5))
     ax_id = 0
     for case_id, obj_id in zip([28, 130], [24, 4]):
         predict_traces = []
@@ -59,16 +60,27 @@ def hard_scenarios():
         
         for model_name, predict_trace, color in zip(["GRIP++", "FQA", "Trajectron++"], predict_traces, ["red", "darkorange", "green"]):
             predict_trace = np.concatenate((last_point.reshape(1,2), predict_trace), axis=0)
-            ax[ax_id].plot(predict_trace[:,0], predict_trace[:,1], "o:", color=color, label="Prediction of {}".format(model_name))
+            # ax[ax_id].plot(predict_trace[:,0], predict_trace[:,1], "o:", color=color, label="Prediction of {}".format(model_name))
+            plt.plot(predict_trace[:,0], predict_trace[:,1], "o:", color=color, label="Prediction of {}".format(model_name))
         
         future_trace = np.concatenate((last_point.reshape(1,2), future_trace), axis=0)
-        ax[ax_id].plot(future_trace[:,0], future_trace[:,1], "bo:", label="Future")
-        ax[ax_id].plot(observe_trace[:,0], observe_trace[:,1], "bo-", label="History")
-        ax[ax_id].set_xlim([(min_x + max_x)/ 2 - scale, (min_x + max_x)/ 2 + scale])
-        ax[ax_id].set_ylim([(min_y + max_y)/ 2 - scale, (min_y + max_y)/ 2 + scale])
-        ax[ax_id].legend()
+
+        # ax[ax_id].plot(future_trace[:,0], future_trace[:,1], "bo:", label="Future")
+        # ax[ax_id].plot(observe_trace[:,0], observe_trace[:,1], "bo-", label="History")
+        # ax[ax_id].set_xlim([(min_x + max_x)/ 2 - scale, (min_x + max_x)/ 2 + scale])
+        # ax[ax_id].set_ylim([(min_y + max_y)/ 2 - scale, (min_y + max_y)/ 2 + scale])
+        # ax[ax_id].legend()
+
+        plt.plot(future_trace[:,0], future_trace[:,1], "bo:", label="Future")
+        plt.plot(observe_trace[:,0], observe_trace[:,1], "bo-", label="History")
+        plt.xlim([(min_x + max_x)/ 2 - scale, (min_x + max_x)/ 2 + scale])
+        plt.ylim([(min_y + max_y)/ 2 - scale, (min_y + max_y)/ 2 + scale])
+        plt.legend()
+        plt.savefig("figures/hard_scenarios_{}.pdf".format(ax_id), bbox_inches='tight')
+        plt.clf()
+
         ax_id += 1
-    fig.savefig("figures/hard_scenarios.pdf", bbox_inches='tight')
+    # fig.savefig("figures/hard_scenarios.pdf", bbox_inches='tight')
 
 
 def blackbox():
@@ -301,9 +313,9 @@ def threshold():
     print(n/1200)
 
 
-# hard_scenarios()
+hard_scenarios()
 # blackbox()
 # density()
-attack_length()
+# attack_length()
 # threshold()
 # defense()
