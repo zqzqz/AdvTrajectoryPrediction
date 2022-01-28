@@ -6,7 +6,11 @@
 
 The dependency packages are listed in `/requirements.txt` which supports all three models (GRIP++, FQA, and Trajectron++) and other analysis code.
 
-Other than requirements of models themselves, our analysis code require packages such as `matplotlib`, `sklearn`, `numpy`, etc.
+```
+pip install -r requirements.txt
+```
+
+In fact, the `requirements.txt` include packages required by [Trajectron++](https://github.com/StanfordASL/Trajectron-plus-plus) and a few tools, e.g., `SetGPU`, `matplotlib`.
 
 ## Directory Structure and Definitions
 
@@ -53,7 +57,7 @@ Format of JSON-format input trajectory data
             "future_trace": [predict_length * 2],
             "future_feature": [predict_length * feature_dimension],
             "future_mask": [predict_length],
-            "predict_trace": [predict_length * 2]
+            "predict_trace": [predict_length * 2] // Empty before inference
         }, ...
     }
 }
@@ -103,7 +107,8 @@ multiframe_data(output_dir, ApolloscapeDataset, obs_length=6, pred_length=6, tim
 Normal prediction, adversarial attack, and evaluation are done through API `normal_test`, `adv_attack`, and `evaluate_loss` implemented in `test_utils.py`. As a quick start, we can execute `test.py` to run the whole pipeline.
 
 ```
-python test.py ${model_name} ${dataset_name} 0  # The last parameter is "overwrite". If it is 1, the generated result will overwrites existing files.
+python test.py ${model_name} ${dataset_name} 0  # The last parameter is "overwrite". If it is 1, the generated result will overwrite existing files.
 ```
 
-One can futher modify the configurations in `test.py`  line 20, 58, 284 to customize the experiment.
+Tune parameters in `test/test.py:L284-287` to switch prediction modes and training/testing modes.
+
