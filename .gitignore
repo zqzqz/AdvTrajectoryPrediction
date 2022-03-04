@@ -1,8 +1,3 @@
-/prediction/model/GRIP/GRIP
-/prediction/model/Trajectron/Trajectron-plus-plus
-/prediction/model/FQA/FQA
-/test/data
-
 # general
 nohup.out
 *.old

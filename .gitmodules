@@ -1,7 +1,3 @@
-[submodule "prediction/model/TrafficPredict/TrafficPredict"]
-	path = prediction/model/TrafficPredict/TrafficPredict
-	url = https://github.com/huang-xx/TrafficPredict.git
-	ignore = all
 [submodule "prediction/model/GRIP/GRIP"]
 	path = prediction/model/GRIP/GRIP
 	url = https://github.com/xincoder/GRIP.git
@@ -9,4 +5,8 @@
 [submodule "prediction/model/FQA/FQA"]
 	path = prediction/model/FQA/FQA
 	url = git@github.com:nitinkamra1992/FQA
+	ignore = all
+[submodule "prediction/model/Trajectron/Trajectron-plus-plus"]
+	path = prediction/model/Trajectron/Trajectron-plus-plus
+	url = git@github.com:StanfordASL/Trajectron-plus-plus.git
 	ignore = all

@@ -193,7 +193,7 @@ def attack(mode="single_frame", augment=False, smooth=0, blackbox=False):
     tag = get_tag(augment=augment, smooth=smooth, blackbox=blackbox)
 
     if not blackbox:
-        attacker = GradientAttacker(api.obs_length, api.pred_length, attack_length, api, seed_num=10, iter_num=200, physical_bounds=physical_bounds, bound=1, learn_rate=0.001)
+        attacker = GradientAttacker(api.obs_length, api.pred_length, attack_length, api, seed_num=10, iter_num=100, physical_bounds=physical_bounds, bound=1, learn_rate=0.1)
     else:
         attacker = PSOAttacker(api.obs_length, api.pred_length, attack_length, api, physical_bounds=physical_bounds)
 

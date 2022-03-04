@@ -36,6 +36,8 @@ class GradientAttacker(BaseAttacker):
         perturbation = {"obj_id": obj_id, "loss": self.loss, "value": {}, "ready_value": {}, "attack_opts": attack_opts}
         
         lr = self.learn_rate
+        if attack_opts["type"] in ["ade", "fde"]:
+            lr /= 10
 
         if "mode" in attack_opts:
             mode = attack_opts["mode"]
