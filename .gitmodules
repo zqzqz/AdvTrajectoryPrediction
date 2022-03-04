@@ -1,9 +1,9 @@
-[submodule "TrafficPredict/TrafficPredict"]
-	path = prediction/TrafficPredict/TrafficPredict
+[submodule "prediction/model/TrafficPredict/TrafficPredict"]
+	path = prediction/model/TrafficPredict/TrafficPredict
 	url = https://github.com/huang-xx/TrafficPredict.git
 	ignore = all
-[submodule "prediction/GRIP/GRIP"]
-	path = prediction/GRIP/GRIP
+[submodule "prediction/model/GRIP/GRIP"]
+	path = prediction/model/GRIP/GRIP
 	url = https://github.com/xincoder/GRIP.git
 	ignore = all
 [submodule "prediction/model/FQA/FQA"]
