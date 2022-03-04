@@ -21,8 +21,9 @@ tmp*
 !/data/NGSIM/README.md
 !/data/NGSIM/preprocessing.m
 !/data/NGSIM/format.py
-!/data/apolloscape/preprocessing.m
-/data/nuscenes/*
+/data/nuScenes/*
+!/data/nuScenes/README.md
+!/data/nuScenes/preprocessing.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
