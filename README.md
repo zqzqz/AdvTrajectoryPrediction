@@ -132,6 +132,8 @@ For executing normal tests or attacks on specific test case, see function `norma
 Similar to `prediction/dataset/apolloscape.py`, the developer should write a class inheriting `prediction.dataset.base.BaseDataset` and implement interface `format_data`.
 `format_data` should be a generator and  use `yield` to output test cases in the JSON-format defined before.
 
+Update `test/config.py`.
+
 ### Add custom prediction models
 
 Similar to `prediction/model/GRIP/interface.py`, the developer should write a class inheriting `prediction.model.base.interface.Interface`.
@@ -150,6 +152,8 @@ The perturbation structure is defined as follows. For more details, please see t
   }
 }
 ```
+
+Update `test/config.py`
 
 ## References
 
