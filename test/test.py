@@ -1,11 +1,12 @@
-import setGPU
 import os, sys
 import random
 import logging
 import copy
 import torch
+import argparse
 torch.backends.cudnn.enabled = False
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+
 from prediction.dataset.apolloscape import ApolloscapeDataset
 from prediction.dataset.ngsim import NGSIMDataset
 from prediction.dataset.nuscenes import NuScenesDataset
@@ -13,101 +14,14 @@ from prediction.dataset.generate import data_offline_generator
 from prediction.attack.gradient import GradientAttacker
 from prediction.attack.pso import PSOAttacker
 from test_utils import *
-
-
-############################################################################################################################################################
-
-datasets = {
-    "apolloscape": {
-        "api": ApolloscapeDataset,
-        "obs_length": 6,
-        "pred_length": 6,
-        "time_step": 0.5,
-        "sample_step": 5,
-        "attack_length": 6,
-        "data_dir": "data/dataset/apolloscape/multi_frame"
-    },
-    "ngsim": {
-        "api": NGSIMDataset,
-        "obs_length": 15,
-        "pred_length": 25,
-        "time_step": 0.2,
-        "skip": 5,
-        "attack_length": 15,
-        "data_dir": "data/dataset/ngsim/multi_frame"
-    },
-    "nuscenes": {
-        "api": NuScenesDataset,
-        "obs_length": 4,
-        "pred_length": 12,
-        "time_step": 0.5,
-        "attack_length": 6,
-        "data_dir": "data/dataset/nuscenes/multi_frame"
-    }
-}
+from config import datasets, models
 
 
 for dataset_name in datasets:
-    datasets[dataset_name]["instance"] = datasets[dataset_name]["api"](datasets[dataset_name]["obs_length"], datasets[dataset_name]["pred_length"], datasets[dataset_name]["time_step"])
     samples_file = os.path.join(datasets[dataset_name]["data_dir"], "samples.txt")
     with open(samples_file, 'r') as f:
         lines = f.readlines()
     datasets[dataset_name]["samples"] = [(int(line.split(' ')[0]), int(line.split(' ')[1])) for line in lines]
-
-
-models = {
-    "grip": {
-        "apolloscape": {
-            "pre_load_model": "data/grip_apolloscape/model/original/best_model.pt",
-            "num_node": 120, 
-            "in_channels": 4,
-            "rescale": [1,1]
-        },
-        "ngsim": {
-            "pre_load_model": "data/grip_ngsim/model/original/best_model.pt",
-            "num_node": 260, 
-            "in_channels": 4,
-            "rescale": [669.691/2, 669.691/2]
-        },
-        "nuscenes": {
-            "pre_load_model": "data/grip_nuscenes/model/original/best_model.pt", 
-            "num_node": 160, 
-            "in_channels": 4,
-            "rescale": [1,1]
-        }
-    },
-    "fqa": {
-        "apolloscape": {
-            "pre_load_model": "data/fqa_apolloscape/model/original"
-        },
-        "ngsim": {
-            "pre_load_model": "data/fqa_ngsim/model/original"
-        },
-        "nuscenes": {
-            "pre_load_model": "data/fqa_nuscenes/model/original"
-        }
-    },
-    "trajectron": {
-        "apolloscape": {
-            "pre_load_model": "data/trajectron_apolloscape/model/original", 
-            "maps": None
-        },
-        "ngsim": {
-            "pre_load_model": "data/trajectron_ngsim/model/original", 
-            "maps": None
-        },
-        "nuscenes": {
-            "pre_load_model": "data/trajectron_nuscenes/model/original", 
-            "maps": None
-        }
-    },
-    "trajectron_map": {
-        "nuscenes": {
-            "pre_load_model": "data/trajectron_map_nuscenes/model/original", 
-            "maps": datasets["nuscenes"]["instance"].maps
-        }
-    }
-}
 
 
 def load_model(model_name, dataset_name, augment=False, smooth=0, models=models):
@@ -139,8 +53,6 @@ def load_model(model_name, dataset_name, augment=False, smooth=0, models=models)
         **model_config[model_name][dataset_name]
     )
 
-#####################################################################################################################################################################
-
 def get_tag(augment=False, smooth=0, blackbox=False):
     if augment and smooth:
         return "augment_smooth"
@@ -154,37 +66,7 @@ def get_tag(augment=False, smooth=0, blackbox=False):
         return "original"
 
 
-def sample():
-    dataset_name = sys.argv[1]
-    DATASET_DIR = "data/dataset/{}/multi_frame/raw".format(dataset_name)
-    SAMPLE_PATH = "data/dataset/{}/multi_frame/samples.txt".format(dataset_name)
-    interval_bound = 0.02 if dataset_name == "ngsim" else 0.05
-
-    scene_candidates = []
-    for name, input_data in data_offline_generator(DATASET_DIR):
-        obj_candidates = []
-        for obj_id, obj in input_data["objects"].items():
-            if obj["type"] not in [1, 2]:
-                continue
-            if not obj["complete"]:
-                continue
-            if np.sum(np.sum((obj["observe_trace"][1:,:] - obj["observe_trace"][:-1,:]) ** 2, axis=1) < interval_bound) > 0:
-                continue
-            obj_candidates.append(obj_id)
-        if len(obj_candidates) == 0:
-            continue
-        obj_id = random.choice(obj_candidates)
-        scene_candidates.append((name, obj_id))
-    cases = scene_candidates[::(len(scene_candidates)//100)][:100]
-
-    with open(SAMPLE_PATH, 'w') as f:
-        f.write('\n'.join(["{} {}".format(scene[0], scene[1]) for scene in cases]))
-
-
-def attack(mode="single_frame", augment=False, smooth=0, blackbox=False):
-    model_name = sys.argv[1]
-    dataset_name = sys.argv[2]
-    overwrite = int(sys.argv[3])
+def attack(model_name, dataset_name, overwrite=0, mode="single_frame", augment=False, smooth=0, blackbox=False):
     api = load_model(model_name, dataset_name, augment=augment, smooth=smooth)
     DATASET_DIR = "data/dataset/{}".format(dataset_name)
     samples = datasets[dataset_name]["samples"]
@@ -204,15 +86,12 @@ def attack(mode="single_frame", augment=False, smooth=0, blackbox=False):
                         overwrite=overwrite, samples=samples)
 
 
-def normal(mode="single_frame", augment=False, smooth=0):
-    model_name = sys.argv[1]
-    dataset_name = sys.argv[2]
-    overwrite = int(sys.argv[3])
+def normal(model_name, dataset_name, overwrite=0, mode="single_frame", augment=False, smooth=0):
     api = load_model(model_name, dataset_name, augment=augment, smooth=smooth)
     DATASET_DIR = "data/dataset/{}".format(dataset_name)
     samples = datasets[dataset_name]["samples"]
     attack_length = datasets[dataset_name]["attack_length"] if mode.endswith("multi_frame") else 1
-    tag = get_tag(augment=augment, smooth=smooth, blackbox=blackbox)
+    tag = get_tag(augment=augment, smooth=smooth, blackbox=False)
 
     datadir = "data/{}_{}/{}/normal/{}".format(model_name, dataset_name, mode, tag)
     print(datadir)
@@ -222,13 +101,16 @@ def normal(mode="single_frame", augment=False, smooth=0):
                         overwrite=overwrite, samples=samples, attack_length=attack_length)
 
 
-def evaluate(mode="single_frame", augment=False, smooth=0, blackbox=False):
-    if len(sys.argv) >= 3:
-        model_list = [sys.argv[1]]
-        dataset_list = [sys.argv[2]]
-    else:
+def evaluate(model_name=None, dataset_name=None, overwrite=0, mode="single_frame", augment=False, smooth=0, blackbox=False):
+    if model_name is None:
         model_list = list(models.keys())
+    else:
+        model_list = [model_name]
+
+    if dataset_name is None:
         dataset_list = list(datasets.keys())
+    else:
+        dataset_list = [dataset_name]
 
     tag = get_tag(augment=augment, smooth=smooth, blackbox=blackbox)
     
@@ -253,39 +135,22 @@ def evaluate(mode="single_frame", augment=False, smooth=0, blackbox=False):
                 evaluate_loss("{}/raw".format(datadir), samples=samples, output_dir="{}/evaluate".format(datadir), normal_data=False, attack_length=attack_length)
 
 
-def attack_one():
-    model_name = "grip"
-    dataset_name = "apolloscape"
-    case_id = 312
-    obj_id = 319
-    attack_goal = "ade"
+def main():
+    parser = argparse.ArgumentParser(description='Testing script for prediction attacks.')
+    parser.add_argument("--dataset", type=str, default="apolloscape", help="Name of dataset [apolloscape, ngsim, nuscenes]")
+    parser.add_argument("--model", type=str, default="grip", help="Name of model [grip, fqa, trajectron, trajectron_map]")
+    parser.add_argument("--mode", type=str, default="single_frame", help="Prediction mode [single_frame, multi_frame]")
+    parser.add_argument("--augment", action="store_true", default=False, help="Enable data augmentation")
+    parser.add_argument("--smooth", type=int, default=0, help="Enable trajectory smoothing -- 0: no smoothing; 1: train-time smoothing; 2: test-time smoothing")
+    parser.add_argument("--blackbox", action="store_true", default=False, help="Use blackbox attack instead of whitebox")
+    parser.add_argument("--overwrite", action="store_true", default=False, help="Overwrite existing data")
+    args = parser.parse_args()
 
-    api = load_model(model_name, dataset_name, smooth=True, augment=False)
-    DATASET_DIR = "data/dataset/{}".format(dataset_name)
-    # attack_length = datasets[dataset_name]["attack_length"]
-    attack_length = 1
-    physical_bounds = datasets[dataset_name]["instance"].bounds
-
-    print("normal")
-    result_path = "{}-{}-{}-{}-smooth.json".format(model_name, dataset_name, case_id, obj_id)
-    figure_path = "{}-{}-{}-{}-smooth.png".format(model_name, dataset_name, case_id, obj_id)
-    test_sample(api, DATASET_DIR, case_id, obj_id, attack_length, result_path, figure_path)
-
-    print("attack")
-    attacker = GradientAttacker(api.obs_length, api.pred_length, attack_length, api, seed_num=1, iter_num=100, physical_bounds=physical_bounds)
-    # attacker = PSOAttacker(api.obs_length, api.pred_length, attack_length, api, physical_bounds=physical_bounds)
-    
-    result_path = "{}-{}-{}-{}-{}-smooth.json".format(model_name, dataset_name, case_id, obj_id, attack_goal)
-    figure_path = "{}-{}-{}-{}-{}-smooth.png".format(model_name, dataset_name, case_id, obj_id, attack_goal)
-    attack_sample(attacker, DATASET_DIR, case_id, obj_id, attack_goal, result_path, figure_path)
+    normal(dataset_name=args.dataset, model_name=args.model, mode=args.mode, augment=args.augment, smooth=args.smooth, overwrite=args.overwrite)
+    attack(dataset_name=args.dataset, model_name=args.model, mode=args.mode, augment=args.augment, smooth=args.smooth, blackbox=args.blackbox, overwrite=args.overwrite)
+    evaluate(dataset_name=args.dataset, model_name=args.model, mode="normal_"+args.mode, augment=args.augment, smooth=args.smooth, overwrite=args.overwrite)
+    evaluate(dataset_name=args.dataset, model_name=args.model, mode=args.mode, augment=args.augment, smooth=args.smooth, blackbox=args.blackbox, overwrite=args.overwrite)
 
 
 if __name__ == "__main__":
-    mode = "single_frame"
-    augment = False
-    smooth = 0
-    blackbox = False
-    normal(mode=mode, augment=augment, smooth=smooth)
-    attack(mode=mode, augment=augment, smooth=smooth, blackbox=blackbox)
-    evaluate(mode="normal_"+mode, augment=augment, smooth=smooth)
-    evaluate(mode=mode, augment=augment, smooth=smooth, blackbox=blackbox)
+    main()

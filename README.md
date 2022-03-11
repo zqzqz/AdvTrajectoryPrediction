@@ -10,7 +10,9 @@ The dependency packages are listed in `/requirements.txt` which supports all thr
 pip install -r requirements.txt
 ```
 
-In fact, the `requirements.txt` include packages required by [Trajectron++](https://github.com/StanfordASL/Trajectron-plus-plus) and a few tools, e.g., `SetGPU`, `matplotlib`.
+The `requirements.txt` include packages required by [Trajectron++](https://github.com/StanfordASL/Trajectron-plus-plus) and a few tools e.g., `matplotlib` for visualization and `pyswarm` for PSO implementation.
+
+* We assume the user has GPU access. The code is tested on CUDA 10.2 and RTX 2080. The code is based on `PyTorch`.
 
 ## Directory Structure and Definitions
 
@@ -84,6 +86,13 @@ Format of JSON-format output result data
 
 Place datasets in directory `/data` following `README.md` in `data/apolloscape`, `data/NGSIM`, and `data/nuScenes`.
 
+Then this codebase translate raw dataset into JSON-format testing data. This is done by using APIs we provide. Here we show code samples for Apolloscape datasets. The translation on various datasets is implemented in `/prediction/dataset`. In directory `test`:
+
+```
+python generate_data.py ${dataset_name}
+```
+
+
 ### Prepare models
 
 The models are trained seperatedly for each dataset following the instructions from model authors. The training code is not in this repo and we will provide hyperparameters for training and pretrained models in the future.
@@ -92,15 +101,6 @@ The models are placed in `/test/data/${model_name}_${dataset_name}/model/${attac
 
 ### Generate universial JSON-format testing data
 
-This is done by using APIs we provide. Here we show code samples for Apolloscape datasets. The translation on various datasets is implemented in `/prediction/dataset`. In directory `test`:
-
-```
-from test_utils import multiframe_data
-from prediction.dataset import ApolloscapeDataset
-
-output_dir = "data/dataset/apolloscape/multi_frame/raw"
-multiframe_data(output_dir, ApolloscapeDataset, obs_length=6, pred_length=6, time_step=0.5)
-```
 
 ### Run normal prediction as well as the attack
 
