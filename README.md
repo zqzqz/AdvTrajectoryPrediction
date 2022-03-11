@@ -119,7 +119,7 @@ The script contains following parameters:
 * `model`: the model's name, by default `grip`.
 * `mode`: the prediction mode, by default `single_frame`.
 * `augment`: boolean flag; adding the option enables data augmentation.
-* `smooth`: integer flag; 0 disable trajectory smoothing; 1 enable train-time smoothing; 2 enable test-time smoothing.
+* `smooth`: integer flag; 0 disables trajectory smoothing; 1 enables train-time smoothing; 2 enables test-time smoothing; 3 enables test-time smoothing with anomaly detection.
 * `blackbox`: boolean flag; adding the option enables blackbox attack instead of whitebox.
 * `overwrite`: boolean flag; if adding the option, generated data will overwrite existing data. False by default.
 

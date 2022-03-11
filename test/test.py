@@ -141,7 +141,7 @@ def main():
     parser.add_argument("--model", type=str, default="grip", help="Name of model [grip, fqa, trajectron, trajectron_map]")
     parser.add_argument("--mode", type=str, default="single_frame", help="Prediction mode [single_frame, multi_frame]")
     parser.add_argument("--augment", action="store_true", default=False, help="Enable data augmentation")
-    parser.add_argument("--smooth", type=int, default=0, help="Enable trajectory smoothing -- 0: no smoothing; 1: train-time smoothing; 2: test-time smoothing")
+    parser.add_argument("--smooth", type=int, default=0, help="Enable trajectory smoothing -- 0: no smoothing; 1: train-time smoothing; 2: test-time smoothing; 3: test-time smoothing with anomaly detection")
     parser.add_argument("--blackbox", action="store_true", default=False, help="Use blackbox attack instead of whitebox")
     parser.add_argument("--overwrite", action="store_true", default=False, help="Overwrite existing data")
     args = parser.parse_args()
