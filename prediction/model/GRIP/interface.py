@@ -62,11 +62,8 @@ class GRIPInterface(Interface):
         if not backward:
             self.model.eval()
 
-        # print("A", input_data["objects"]["319"]["observe_trace"])
         _input_data, A, _ori_data, mean_xy, rescale_xy, no_norm_loc_data, output_loc_GT, output_mask, obj_index = self.dataloader.preprocess(input_data, perturbation, smooth=self.smooth, rescale_x=self.rescale[0], rescale_y=self.rescale[1])
-        # print("B", _input_data[0,:2,:,obj_index["319"]])
         predicted = self.model(pra_x=_input_data, pra_A=A, pra_pred_length=self.pred_length, pra_teacher_forcing_ratio=0, pra_teacher_location=output_loc_GT) # (N, C, T, V)=(N, 2, 6, 120)
-        # print("C", predicted[0,:2,:,obj_index["319"]])
         output_data, loss = self.dataloader.postprocess(input_data, perturbation, predicted, _ori_data, mean_xy, rescale_xy, no_norm_loc_data, obj_index)
 
         if loss is None:

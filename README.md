@@ -80,13 +80,17 @@ Format of JSON-format output result data
 }
 ```
 
-## Steps to Reproduce
+## Steps to reproduce
 
 ### Prepare datasets
 
-Place datasets in directory `/data` following `README.md` in `data/apolloscape`, `data/NGSIM`, and `data/nuScenes`.
+First of all, we provide formulated test cases via [Google Drives](https://drive.google.com/file/d/1WxFotCnTC6oSqFTtc7PAkBHM6CNrTZJ4/view?usp=sharing). Download the ZIP file and unzip it into directory `test/data`. By doing so, you can skip the following steps in this subsection.
 
-Then this codebase translate raw dataset into JSON-format testing data. This is done by using APIs we provide. Here we show code samples for Apolloscape datasets. The translation on various datasets is implemented in `/prediction/dataset`. In directory `test`:
+First, place datasets in directory `/data` following `README.md` in `data/apolloscape`, `data/NGSIM`, and `data/nuScenes`.
+
+Second, this codebase translate raw dataset into JSON-format testing data. This is done by using APIs we provide. Here we show code samples for Apolloscape datasets. The translation on various datasets is implemented in `/prediction/dataset`. 
+
+To quickly generate the JSON-format test cases, run scripts in directory `test`:
 
 ```
 python generate_data.py ${dataset_name}
@@ -95,11 +99,10 @@ python generate_data.py ${dataset_name}
 
 ### Prepare models
 
-The models are trained seperatedly for each dataset following the instructions from model authors. The training code is not in this repo and we will provide hyperparameters for training and pretrained models in the future.
+The models are trained seperatedly for each dataset following the instructions from model authors. 
+The models should be placed in `/test/data/${model_name}_${dataset_name}/model/${attack_mode}`.
 
-The models are placed in `/test/data/${model_name}_${dataset_name}/model/${attack_mode}`.
-
-### Generate universial JSON-format testing data
+The training code is not in this repo but we provide pretrained models via [Google Drives](https://drive.google.com/file/d/18240VaDBKSwa5TzZjCnU99EVqEXv9uiG/view?usp=sharing). Download the ZIP file and unzip it into directory `test/data`
 
 
 ### Run normal prediction as well as the attack
@@ -107,8 +110,43 @@ The models are placed in `/test/data/${model_name}_${dataset_name}/model/${attac
 Normal prediction, adversarial attack, and evaluation are done through API `normal_test`, `adv_attack`, and `evaluate_loss` implemented in `test_utils.py`. As a quick start, we can execute `test.py` to run the whole pipeline.
 
 ```
-python test.py ${model_name} ${dataset_name} 0  # The last parameter is "overwrite". If it is 1, the generated result will overwrite existing files.
+python test.py --help
 ```
 
-Tune parameters in `test/test.py:L284-287` to switch prediction modes and training/testing modes.
+The script contains following parameters:
 
+* `dataset`: the dataset's name, by default `apolloscape`.
+* `model`: the model's name, by default `grip`.
+* `mode`: the prediction mode, by default `single_frame`.
+* `augment`: boolean flag; adding the option enables data augmentation.
+* `smooth`: integer flag; 0 disable trajectory smoothing; 1 enable train-time smoothing; 2 enable test-time smoothing.
+* `blackbox`: boolean flag; adding the option enables blackbox attack instead of whitebox.
+* `overwrite`: boolean flag; if adding the option, generated data will overwrite existing data. False by default.
+
+For executing normal tests or attacks on specific test case, see function `normal_sample` and `attack_sample` in `test/test_utils.py`
+
+## For developer
+
+### Add custom datasets
+
+Similar to `prediction/dataset/apolloscape.py`, the developer should write a class inheriting `prediction.dataset.base.BaseDataset` and implement interface `format_data`.
+`format_data` should be a generator and  use `yield` to output test cases in the JSON-format defined before.
+
+### Add custom prediction models
+
+Similar to `prediction/model/GRIP/interface.py`, the developer should write a class inheriting `prediction.model.base.interface.Interface`.
+The developer should implement the `run` interface, which accept the JSON-format test case (defined before) and a dictionary called `perturbation`.
+
+The perturbation structure is defined as follows. For more details, please see the implementation of `prediction.attack.gradient.GradientAttacker`.
+```
+{
+  "obj_id": str - the vehicle id whose trajectory is to be perturbed,
+  "loss": function instance, e.g., prediction.attack.loss.attack_loss,
+  "value": {obj_id: torch tensor of perturbation},
+  "ready_value": {obj_id: torch tensor of perturbation after the constraint checking},
+  "attack_opts": {
+    "type": str - evalaution metric in ["ade", "fde", "left", "right", "front", "rear"],
+    ... other parameters used in loss function
+  }
+{
+```
