@@ -148,5 +148,5 @@ The perturbation structure is defined as follows. For more details, please see t
     "type": str - evalaution metric in ["ade", "fde", "left", "right", "front", "rear"],
     ... other parameters used in loss function
   }
-{
+}
 ```
