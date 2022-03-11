@@ -150,3 +150,12 @@ The perturbation structure is defined as follows. For more details, please see t
   }
 }
 ```
+
+## References
+
+* [Apolloscape](http://apolloscape.auto/)
+* [NGSIM](https://ops.fhwa.dot.gov/trafficanalysistools/ngsim.htm)
+* [NuScenes](https://www.nuscenes.org/)
+* GRIP++: Enhanced Graph-based Interaction-aware Trajectory Prediction for Autonomous Driving [Paper](https://arxiv.org/abs/1907.07792) [Code](https://github.com/xincoder/GRIP)
+* Multi-agent Trajectory Prediction with Fuzzy Query Attention [Paper](https://proceedings.neurips.cc/paper/2020/hash/fe87435d12ef7642af67d9bc82a8b3cd-Abstract.html) [Code](https://github.com/nitinkamra1992/FQA)
+* Trajectron++: Dynamically-Feasible Trajectory Forecasting With Heterogeneous Data [Paper](https://link.springer.com/chapter/10.1007/978-3-030-58523-5_40) [Code](https://github.com/StanfordASL/Trajectron-plus-plus)
