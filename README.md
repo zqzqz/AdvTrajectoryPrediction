@@ -20,7 +20,7 @@ Parameters:
 - `dataset_name`: apolloscape, ngsim, nuscenes
 - `model_name`: grip, fqa, trajectron, trajectron_map
 - `predict_mode`: single_frame, multi_frame (3-second)
-- `attack_mode`: original (white box), augment (data augmentation), smooth (train-time trajectory smoothing), augment_smooth (data augmentation plus train-time trajectory smoothing) smooth2 (test-time trajectory smoothing), smooth3 (conditional test-time trajectory smoothing with detection), blackbox
+- `attack_mode`: original (white box), augment (data augmentation), smooth (train-time trajectory smoothing), augment_smooth (data augmentation plus train-time trajectory smoothing), smooth2 (test-time trajectory smoothing), smooth3 (conditional test-time trajectory smoothing with detection), blackbox
 - `metric`: ade, fde, left, right, front, rear.
 
 Directories:
@@ -50,9 +50,6 @@ Format of JSON-format input trajectory data
             "type": int,  // 1: small vehicle 2: large vehicle 3: pedestrian 4: unknown
             "complete": bool, // all time frames are filled
             "visible": bool, // the last frame of history is filled
-            "observe_trace": [observe_length * 2],
-            "observe_feature": [observe_length * feature_dimension],
-            "observe_mask": [observe_length],
             "observe_trace": [observe_length * 2],
             "observe_feature": [observe_length * feature_dimension],
             "observe_mask": [observe_length],
