@@ -19,6 +19,7 @@ tmp*
 /data/nuScenes/*
 !/data/nuScenes/README.md
 !/data/nuScenes/preprocessing.py
+!/data/nuScenes/map_name.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
