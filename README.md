@@ -81,7 +81,7 @@ Format of JSON-format output result data
 
 ### Prepare datasets
 
-First of all, we provide formulated test cases via [Google Drives](https://drive.google.com/file/d/1WxFotCnTC6oSqFTtc7PAkBHM6CNrTZJ4/view?usp=sharing). Download the ZIP file and unzip it into directory `test/data`. By doing so, you can skip the following steps in this subsection.
+First of all, we provide formulated test cases via [Google Drives](https://drive.google.com/file/d/1WxFotCnTC6oSqFTtc7PAkBHM6CNrTZJ4/view?usp=sharing). Download the ZIP file and unzip it into directory `test/data`. By doing so, you can skip the following steps in this subsection (except for trajectron_map model on nuScenes since we still need map data from nuScenes dataset).
 
 First, place datasets in directory `/data` following `README.md` in `data/apolloscape`, `data/NGSIM`, and `data/nuScenes`.
 
