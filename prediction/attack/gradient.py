@@ -32,7 +32,6 @@ class GradientAttacker(BaseAttacker):
         except:
             pass
 
-        self.predictor.model.train()
         perturbation = {"obj_id": obj_id, "loss": self.loss, "value": {}, "ready_value": {}, "attack_opts": attack_opts}
         
         lr = self.learn_rate
