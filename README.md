@@ -4,7 +4,7 @@
 
 * Python 3.6+
 
-The dependency packages are listed in `/requirements.txt` which supports all three models (GRIP++, FQA, and Trajectron++) and other analysis code.
+Install necessary packages.
 
 ```
 pip install -r requirements.txt
@@ -12,7 +12,7 @@ pip install -r requirements.txt
 
 The `requirements.txt` include packages required by [Trajectron++](https://github.com/StanfordASL/Trajectron-plus-plus) and a few tools e.g., `matplotlib` for visualization and `pyswarm` for PSO implementation.
 
-* We assume the user has GPU access. The code is tested on CUDA 10.2 and RTX 2080. The code is based on `PyTorch`.
+* We assume the user has GPU access. The code is tested on CUDA 10.2 and RTX 2080.
 
 ## Directory Structure and Definitions
 

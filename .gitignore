@@ -1,4 +1,6 @@
 # general
+.DS*
+._*
 nohup.out
 *.old
 tmp*
