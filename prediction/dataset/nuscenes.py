@@ -61,7 +61,11 @@ class NuScenesDataset(BaseDataset):
             for line in lines:
                 tokens = line[:-1].split(' ')
                 scene_name, map_name = tokens[1], tokens[2]
-                scene_map[scene_name] = map_name
+                map_coordinates = tuple([int(float(x)) for x in tokens[3:7]])
+                scene_map[scene_name] = {
+                    "map_name": map_name,
+                    "map_coordinates": map_coordinates,
+                }
         return scene_map
 
     def get_map(self, map_name):
@@ -70,7 +74,7 @@ class NuScenesDataset(BaseDataset):
 
     def get_maps(self):
         maps = {}
-        unique_maps = list(set(self.scene_map.values()))
+        unique_maps = list(set([v["map_name"] for k, v in self.scene_map.items()]))
         for map_name in unique_maps:
             maps[map_name] = self.get_map(map_name)
         return maps
@@ -96,7 +100,8 @@ class NuScenesDataset(BaseDataset):
                     "time_step": self.time_step,
                     "feature_dimension": self.feature_dimension,
                     "objects": {},
-                    "map_name": self.scene_map[scene_name],
+                    "map_name": self.scene_map[scene_name]["map_name"],
+                    "map_coordinates": list(self.scene_map[scene_name]["map_coordinates"]),
                     "scene_name": scene_name
                 }
 

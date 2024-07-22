@@ -16,9 +16,10 @@ from kalman_filter import NonlinearKinematicBicycle
 
 
 class TrajectronDataLoader(DataLoader):
-    def __init__(self, obs_length=6, pred_length=6, maps=None):
+    def __init__(self, obs_length=6, pred_length=6, maps=None, scene_map=None):
         super().__init__(obs_length, pred_length)
         self.maps = maps
+        self.scene_map = scene_map
 
     @staticmethod
     def input_data_to_ndarray(input_data):
@@ -116,14 +117,11 @@ class TrajectronDataLoader(DataLoader):
         total = 0
 
         data = self.input_data_to_dataframe(input_data, env)
-        x_min = np.round(data['x'].min() - 50)
-        x_max = np.round(data['x'].max() + 50)
-        y_min = np.round(data['y'].min() - 50)
-        y_max = np.round(data['y'].max() + 50)
 
-        map_name = input_data["map_name"] if "map_name" in input_data else None
-        use_map = self.maps is not None and map_name is not None and map_name in self.maps
+        use_map = self.maps is not None
         if use_map:
+            map_name = input_data["map_name"] if "map_name" in input_data else self.scene_map[scene_name]["map_name"]
+            x_min, x_max, y_min, y_max = tuple(input_data["map_coordinates"]) if "map_coordinates" in input_data else self.scene_map[scene_name]["map_coordinates"]
             nusc_map = self.maps[map_name]
             type_map = dict()
             x_size = x_max - x_min
@@ -134,8 +132,7 @@ class TrajectronDataLoader(DataLoader):
             homography = np.array([[3., 0., 0.], [0., 3., 0.], [0., 0., 3.]])
             layer_names = ['lane', 'road_segment', 'drivable_area', 'road_divider', 'lane_divider', 'stop_line',
                         'ped_crossing', 'stop_line', 'ped_crossing', 'walkway']
-            map_mask = (nusc_map.get_map_mask(patch_box, patch_angle, layer_names, canvas_size) * 255.0).astype(
-                np.uint8)
+            map_mask = (nusc_map.get_map_mask(patch_box, patch_angle, layer_names, canvas_size) * 255.0).astype(np.uint8)
             map_mask = np.swapaxes(map_mask, 1, 2)  # x axis comes first
             # PEDESTRIANS
             map_mask_pedestrian = np.stack((map_mask[9], map_mask[8], np.max(map_mask[:3], axis=0)), axis=0)

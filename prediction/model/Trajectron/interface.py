@@ -25,12 +25,12 @@ logger = logging.getLogger(__name__)
 
 
 class TrajectronInterface(Interface):
-    def __init__(self, obs_length, pred_length, time_step=0.5, pre_load_model=None, maps=None, smooth=0, dataset=None):
+    def __init__(self, obs_length, pred_length, time_step=0.5, pre_load_model=None, maps=None, scene_map=None, smooth=0, dataset=None):
         super().__init__(obs_length, pred_length)
         self.time_step = time_step
 
         self.dataloader = TrajectronDataLoader(
-            self.obs_length, self.pred_length, maps=maps
+            self.obs_length, self.pred_length, maps=maps, scene_map=scene_map
         )
 
         self.standardization = {

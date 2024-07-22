@@ -88,7 +88,8 @@ models = {
     "trajectron_map": {
         "nuscenes": {
             "pre_load_model": "data/trajectron_map_nuscenes/model/original", 
-            "maps": datasets["nuscenes"]["instance"].maps
+            "maps": datasets["nuscenes"]["instance"].maps,
+            "scene_map": datasets["nuscenes"]["instance"].scene_map,
         }
     }
 }

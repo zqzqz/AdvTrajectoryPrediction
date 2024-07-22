@@ -1,17 +1,20 @@
 import sys
 import os
+trajectron_path = "../../prediction/model/Trajectron/Trajectron-plus-plus"
+sys.path.append(os.path.join(trajectron_path, 'experiments/nuScenes'))
+sys.path.append(os.path.join(trajectron_path, 'experiments/nuScenes/devkit/python-sdk/'))
+sys.path.append(os.path.join(trajectron_path, "trajectron"))
+
 import numpy as np
 import pandas as pd
 import dill
 import argparse
+import pickle
 from tqdm import tqdm
 from pyquaternion import Quaternion
 from kalman_filter import NonlinearKinematicBicycle
 from sklearn.model_selection import train_test_split
 
-nu_path = './devkit/python-sdk/'
-sys.path.append(nu_path)
-sys.path.append("../../trajectron")
 from nuscenes.nuscenes import NuScenes
 from nuscenes.map_expansion.map_api import NuScenesMap
 from nuscenes.utils.splits import create_splits_scenes
@@ -256,12 +259,10 @@ def process_scene(ns_scene, env, nusc, data_path):
     data['x'] = data['x'] - x_min
     data['y'] = data['y'] - y_min
 
-    # scene = Scene(timesteps=max_timesteps + 1, dt=dt, name=str(scene_id), aug_func=augment)
-
-    # Generate Maps
     map_name = nusc.get('log', ns_scene['log_token'])['location']
+    map_coordinates = [x_min, x_max, y_min, y_max]
 
-    return data, map_name
+    return data, map_name, map_coordinates
     
 
 def process_data(data_path, version, output_path, val_split):
@@ -276,6 +277,8 @@ def process_data(data_path, version, output_path, val_split):
     ns_scene_names['train'] = train_scene_names
     ns_scene_names['val'] = val_scene_names
     ns_scene_names['test'] = test_scene_names
+
+    os.makedirs(os.path.join(output_path, "scene_maps"), exist_ok=True)
 
     for data_class in ['train', 'val', 'test']:
         map_name_path = os.path.join(output_path, "map_name.txt")
@@ -297,7 +300,7 @@ def process_data(data_path, version, output_path, val_split):
             if scene_id in scene_blacklist:  # Some scenes have bad localization
                 continue
 
-            scene_data, map_name = process_scene(ns_scene, env, nusc, data_path)
+            scene_data, map_name, map_coordinates = process_scene(ns_scene, env, nusc, data_path)
 
             scene_data_path = os.path.join(output_path, "prediction_" + data_class, ns_scene_name + ".txt")
             with open(scene_data_path, 'w') as f:
@@ -312,7 +315,7 @@ def process_data(data_path, version, output_path, val_split):
                                                                                                      row["length"], row["width"], row["height"],
                                                                                                      row["heading"]))
                 with open(map_name_path, 'a') as f:
-                    f.write("{} {} {}\n".format(data_class, ns_scene_name, map_name))
+                    f.write("{} {} {} {:.2f} {:.2f} {:.2f} {:.2f}\n".format(data_class, ns_scene_name, map_name, *map_coordinates))
 
         print(f'Processed {len(scenes):.2f} scenes')
 
