@@ -59,7 +59,9 @@ class GRIPInterface(Interface):
     def run(self, input_data, perturbation=None, backward=False):
         assert(self.model is not None)
 
-        if not backward:
+        if backward:
+            self.model.train()
+        else:
             self.model.eval()
 
         _input_data, A, _ori_data, mean_xy, rescale_xy, no_norm_loc_data, output_loc_GT, output_mask, obj_index = self.dataloader.preprocess(input_data, perturbation, smooth=self.smooth, rescale_x=self.rescale[0], rescale_y=self.rescale[1])

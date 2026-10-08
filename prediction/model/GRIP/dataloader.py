@@ -183,6 +183,8 @@ class GRIPDataLoader(DataLoader):
         for obj_id, obj in input_data["objects"].items():
             if not obj["visible"]:
                 continue
-            obj["predict_trace"] = torch.transpose(predicted[0,:,:,obj_index[obj_id]], 0, 1).cpu().detach().numpy()
+            pred_tensor = torch.transpose(predicted[0,:,:,obj_index[obj_id]], 0, 1)
+            obj["predict_trace"] = pred_tensor.cpu().detach().numpy()
+            obj["predict_trace_tensor"] = pred_tensor
 
         return input_data, loss
